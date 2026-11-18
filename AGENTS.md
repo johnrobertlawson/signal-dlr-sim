@@ -16,10 +16,12 @@
 ---
 
 ## 2. File Map & Module Responsibilities
-- [`index.html`](index.html): Complete DOM shell. Top telemetry bar (Solari counters, speed controls `0x`–`10x`, sector hotkeys `0`–`5`, modal triggers), `<canvas id="schematic-canvas">`, floating Priority Action Inset, Observe Co-Pilot HUD card, right sidebar (Solari Split-Flap Station Board, VOBC Unit Inspector, Event Log), native `<dialog closedby="any">` modals, and `[interestfor]` + `[popover="hint"]` terse info toggletips.
+- [`index.html`](index.html): Complete DOM shell. Top telemetry bar (Solari counters, speed controls `0x`–`10x`, sector hotkeys `0`–`6`, `🛋️ AUTO-PILOT` + native `ON LAUNCH` `<input type="checkbox" switch>`, modal & 2nd-monitor triggers), `<canvas id="schematic-canvas">`, floating Priority Action Inset, Observe Co-Pilot HUD card (`#observe-regime-pill`), right sidebar (Solari Split-Flap Station Board, VOBC Unit Inspector, Event Log), native `<dialog closedby="any">` modals, and `[interestfor]` + `[popover="hint"]` terse info toggletips.
+- [`vite.config.ts`](vite.config.ts) & [`src/ambient.d.ts`](src/ambient.d.ts): Vite plugin `serveSwitchPolyfillCss()` serving `input-switch-polyfill.css` in dev and emitting `assets/input-switch-polyfill.css` in `dist/` builds, plus ambient module declarations (`interestfor`, `input-switch-polyfill`).
+- [`scripts/build-mac-app.sh`](scripts/build-mac-app.sh): Builds [`DLR Signalling Sim.app`](DLR%20Signalling%20Sim.app), a macOS launcher bundle that starts Vite, opens a dedicated chromeless window, and kills the server cleanly on exit.
 - [`src/types.ts`](src/types.ts): Core TypeScript interfaces (`Station`, `TrackNode`, `TrackEdge`, `ServiceTemplate`, `Train`, `ActiveIncident`, `ContingencyPlan`, `LogEntry`).
 - [`src/dlrData.ts`](src/dlrData.ts):
-  - `STATIONS` & `STATION_MAP`: All 45 stations + `PDP` (Poplar Depot) and `BDP` (Beckton Depot), with non-geographically wrapped eastern Beckton loop (`BKP` → `CYP` → `GAL` → `BCK`) and `WOO` (Woolwich Arsenal) positioned south/under the labelled River Thames ribbon (`y = 685`).
+  - `STATIONS` & `STATION_MAP`: All 45 stations + `PDP` (Poplar Depot) and `BDP` (Beckton Depot) on an orthogonal + `45°` `3180 × 2120` schematic grid, with non-geographically wrapped eastern Beckton loop (`BKP` → `CYP` → `GAL` → `BCK`) and `WOO` (Woolwich Arsenal, `y = 1260`) positioned south/under the labelled Woolwich River Thames ribbon (`y = 1120`; Greenwich Thames ribbon at `y = 1650`).
   - `buildNetworkGraph()`: Generates dual-track nodes (`<ST>_UP`, `<ST>_DN`), expanded grade-separated Delta chords (`DLT_W`, `DLT_SW`, `DLT_SE`, `POP_REV`, `CAW_MID` P3/P4 center turnback) including the **`DLT_BYP_UP` Westbound `CAW → WFE` Bypass Track** (`SOP-WIQ`: no platform at West India Quay for Bank-bound trains), the **Stratford International (`STI`) & Stratford Regional (`STR`) Olympic Complex** (`STI_HSH`, `STI_XOVR`, `STR_BAY` P4a/b high-level bays, `STR_MKT_JCT` Stratford Market crossover, `PML_REV` Olympic pocket), 3-road Poplar Depot stabling fan (`PDP_THROAT`, `PDP_S1..S3`), 4-road Beckton Depot stabling/wash/lathe fan (`BDP_W_LEAD`, `BDP_E_LEAD`, `BDP_R1..R4`, `BCK_REV`, `CUH_SID`), Bank Tail Headshunt Overrun Bore (`BNK_HSH`) + Royal Mint St Junction (`RMJ_UP`/`RMJ_DN`) + Tower Gateway Minories Single-Lead Throat (`TWG_THROAT`), and Woolwich Arsenal Sub-Surface Tail Siding (`WOO_HSH`).
   - `INITIAL_TEMPLATES` & `CONTINGENCY_PLANS`: Base interval schedules (`T_STI_WOO` calls at `STR` P16/P17 between `STI` and `SHS`) and 1-click branch override rules (`CP_SHORT_CAW`, `CP_DIVERT_TWG_BNK`, `CP_BECKTON_CUH`, `CP_AIRPORT_LCA`).
 - [`src/simulation.ts`](src/simulation.ts):
@@ -51,12 +53,14 @@
 4. **Modern Web Standards Compliance**:
    - **Dialogs**: All modals use native `<dialog closedby="any">` opened with `.showModal()`, styled with `dialog:modal { overscroll-behavior: contain; }` and `dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }`, plus the pointer-bounding-box fallback for browsers without native `closedBy`.
    - **Toggletips (`"i"` buttons)**: Use `interestfor="<id>" popovertarget="<id>" popovertargetaction="show"` pointing to `<div id="<id>" popover="hint" class="terse-tip">`. Whenever dynamic HTML containing `[interestfor]` is injected, call `wireInterestTooltips(container)`.
+   - **Switch Control (`ON LAUNCH`)**: `<input id="autopilot-startup-switch" type="checkbox" switch>` with conditional `input-switch-polyfill` loaded only when `!('switch' in HTMLInputElement.prototype)`, backed by `vite.config.ts`'s `serveSwitchPolyfillCss()` middleware/asset emitter so CSS never 404s.
 
 ---
 
 ## 4. Build & Development Commands
 ```bash
 npm install
-npm run dev      # Starts Vite dev server on http://127.0.0.1:5173
-npm run build    # Runs strict tsc typecheck + Vite production bundle into dist/
+npm run dev             # Starts Vite dev server on http://127.0.0.1:5173
+npm run build           # Runs strict tsc typecheck + Vite production bundle into dist/
+npm run build:mac-app   # Rebuilds standalone DLR Signalling Sim.app macOS launcher
 ```
