@@ -30,7 +30,9 @@
 - [`src/observeController.ts`](src/observeController.ts):
   - `ObserveController`: Autonomous "Chief Controller Co-Pilot" & **"Help Me! Fix It!" (`HELP_ME_FIX_IT`)** mode (`Key O`). Steps at 50% slower pace (`RELAXED` 14.3s, `NORMAL` 10.2s, `BRISK` 6.8s) with a live `<progress>` countdown indicator, resolving faults, short-turning late trains, and explaining operational logic without injecting faults when in `HELP_ME_FIX_IT` mode.
 - [`src/stationFactSheets.ts`](src/stationFactSheets.ts):
-  - `getStationFactSheet()` & `renderStationMicroSchematicSVG()`: Generates zoomed-in engineering fact sheets (`Key S` or double-click station) with live SVG micro-interlocking diagrams (showing 3-track Canary Wharf center road, 60m SDO overhang zones, scissor crossovers, and live train berths) plus 3-column Gotchas, Advantages, and Disadvantages.
+  - `getStationFactSheet()` & `renderStationMicroSchematicSVG()`: Generates zoomed-in engineering fact sheets (`Key S` or double-click station) with live SVG micro-interlocking diagrams (including the 4-track West India Quay `CAW→WFE` Bypass diagram, 3-track Canary Wharf center road, 60m SDO overhang zones, scissor crossovers, and live train berths) plus 3-column Gotchas, Advantages, and Disadvantages.
+- [`src/telemetryDesk.ts`](src/telemetryDesk.ts):
+  - `mountSecondMonitorDesk()`: 4-Quadrant Second-Monitor Deep Telemetry & Engineering Command Desk (`/?mode=desk`, launched via `🖥️ 2ND MONITOR DESK` or `Key M`). Shares live 60fps state with Monitor 1 via `window.opener.__dlrSimBridge` while expanding Monitor 1 into a 100% full-bleed Track Schematic Wall (`.dual-monitor-map-only`).
 - [`src/audio.ts`](src/audio.ts):
   - `soundEngine`: Zero-dependency WebAudio synthesizer for Solari mechanical split-flap clatter (`playSplitFlap`), IECC relay clicks (`playRelayClick`), and two-tone SelTrac fault chimes (`playIncidentAlert`).
 - [`src/main.ts`](src/main.ts):

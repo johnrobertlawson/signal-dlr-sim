@@ -5,6 +5,7 @@ import { Station, Train } from './types';
 import { soundEngine } from './audio';
 import { ObserveController, ObserveFocus, ObservePace } from './observeController';
 import { getStationFactSheet, renderStationMicroSchematicSVG } from './stationFactSheets';
+import { mountSecondMonitorDesk } from './telemetryDesk';
 
 const sim = new DLRSimulation();
 const canvasEl = document.getElementById('schematic-canvas') as HTMLCanvasElement;
@@ -1088,6 +1089,8 @@ window.addEventListener('keydown', (e) => {
     sim.triggerScopedDisruption('ALL');
   } else if (key === 'o') {
     observe.toggle();
+  } else if (key === 'm') {
+    popoutDeskBtn?.click();
   } else if (key === 's') {
     openStationFactSheet();
   } else if (key === 'n' && observe.active) {
@@ -1236,18 +1239,94 @@ factsheetStationSelect?.addEventListener('change', () => {
   }
 });
 
-// Initial camera position on Poplar / Westferry / Canary Wharf Delta & UI render
-setTimeout(() => {
-  schematic.handleResize();
-  schematic.jumpToSector('CORE');
-  refreshAllUI();
-}, 60);
+// Dual-Monitor Pop-Out Telemetry Desk & 100% Full-Screen Map Wall Mode
+let deskPopupWin: Window | null = null;
+const appRootEl = document.getElementById('app')!;
+const popoutDeskBtn = document.getElementById('popout-desk-btn') as HTMLButtonElement | null;
 
-// Main Animation & Simulation Loop
+function setMapWallMode(enabled: boolean) {
+  appRootEl.classList.toggle('dual-monitor-map-only', enabled);
+  if (actionInsetPanel && toggleInsetCollapseBtn) {
+    actionInsetPanel.classList.toggle('collapsed', enabled);
+    toggleInsetCollapseBtn.textContent = enabled ? '▸' : '▾';
+  }
+  if (popoutDeskBtn) {
+    popoutDeskBtn.classList.toggle('active', enabled);
+    popoutDeskBtn.textContent = enabled ? '📥 DOCK SIDEBAR [M]' : '🖥️ 2ND MONITOR DESK';
+  }
+  setTimeout(() => {
+    schematic.handleResize();
+    const activeSecBtn = document.querySelector<HTMLButtonElement>('.sector-btn.active');
+    const sec = (activeSecBtn?.dataset.sector || 'CORE') as SectorId;
+    schematic.jumpToSector(sec);
+  }, 40);
+}
+
+window.__dlrSimBridge = {
+  sim,
+  schematic,
+  observe,
+  focusStationOnMainMap: (stationId: string) => {
+    const st = STATION_MAP[stationId];
+    if (!st) return;
+    schematic.selectedStation = st;
+    schematic.focusCoordinates(st.x, st.y, 1.15);
+    renderStationBoard(true);
+    soundEngine.playSplitFlap(4);
+  },
+  focusTrainOnMainMap: (trainId: string) => {
+    const tr = sim.trains.find((t) => t.id === trainId);
+    if (!tr) return;
+    schematic.selectedTrain = tr;
+    const pos = schematic.getTrainWorldCoords(tr);
+    schematic.focusCoordinates(pos.x, pos.y, 1.22);
+    renderTrainInspector(true);
+    soundEngine.playRelayClick(true);
+  },
+  onDeskClosed: () => {
+    deskPopupWin = null;
+    setMapWallMode(false);
+  },
+};
+
+popoutDeskBtn?.addEventListener('click', () => {
+  const isCurrentlyWall = appRootEl.classList.contains('dual-monitor-map-only');
+  if (isCurrentlyWall) {
+    if (deskPopupWin && !deskPopupWin.closed) {
+      deskPopupWin.close();
+    }
+    deskPopupWin = null;
+    setMapWallMode(false);
+    soundEngine.playRelayClick(false);
+    return;
+  }
+
+  const url = `${window.location.origin}${window.location.pathname}?mode=desk`;
+  deskPopupWin = window.open(url, 'dlr_telemetry_desk', 'popup,width=1440,height=920');
+  setMapWallMode(true);
+  soundEngine.playSplitFlap(6);
+  nxStatusText.textContent = '2ND MONITOR TELEMETRY DESK ACTIVE · Monitor 1 Expanded to 100% Schematic Wall (Click 📥 DOCK SIDEBAR to restore)';
+});
+
+// If this window was opened with ?mode=desk, mount the 4-Quadrant Second-Monitor Data Dashboard!
+const isDeskWindow = new URLSearchParams(window.location.search).get('mode') === 'desk';
+if (isDeskWindow) {
+  mountSecondMonitorDesk(sim, schematic, observe);
+} else {
+  // Initial camera position on Poplar / Westferry / Canary Wharf Delta & UI render
+  setTimeout(() => {
+    schematic.handleResize();
+    schematic.jumpToSector('CORE');
+    refreshAllUI();
+  }, 60);
+}
+
+// Main Animation & Simulation Loop (Main Window only)
 let lastFrameTime = performance.now();
 let uiRefreshAccumulator = 0;
 
 function animate(now: number) {
+  if (isDeskWindow) return;
   const dt = Math.min(0.1, (now - lastFrameTime) / 1000);
   lastFrameTime = now;
 
@@ -1276,4 +1355,6 @@ function animate(now: number) {
   requestAnimationFrame(animate);
 }
 
-requestAnimationFrame(animate);
+if (!isDeskWindow) {
+  requestAnimationFrame(animate);
+}
