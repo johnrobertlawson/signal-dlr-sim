@@ -1737,23 +1737,247 @@ progress.observe-countdown-bar::-moz-progress-bar {
   inline-size: 100%;
   block-size: 100dvh;
   background: var(--bg-obsidian);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+/* =========================================================================
+   "SECOND SCREEN" DUAL-PANEL HERO OVERWATCH WALL (58% SCREEN SHARE DEFAULT)
+   ========================================================================= */
+.desk-hero-dual-wall {
+  flex: 0 0 56dvh;
+  min-block-size: 380px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+  padding: 0.65rem 0.7rem 0.25rem 0.7rem;
+  background: linear-gradient(180deg, rgba(14, 26, 42, 0.75) 0%, rgba(7, 11, 16, 0.95) 100%);
+  border-block-end: 2px solid #1e3a5f;
+}
+
+.desk-shell.hero-wall-expanded .desk-hero-dual-wall {
+  flex: 0 0 88dvh;
+  min-block-size: 620px;
+}
+
+.desk-hero-panel {
+  background: #080d15;
+  border: 1px solid #253c59;
+  border-block-start: 3px solid #22d3ee;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  min-block-size: 0;
+  min-inline-size: 0;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+.desk-hero-panel.piano-roll-panel {
+  border-block-start-color: var(--solari-amber);
+}
+
+.hero-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: safe center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.hero-panel-header h3 {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.health-legend-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.health-pill {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+}
+
+.health-pill.optimal {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.health-pill.elevated {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.health-pill.delayed {
+  color: #fb923c;
+  background: rgba(249, 115, 22, 0.16);
+  border-color: rgba(249, 115, 22, 0.45);
+}
+
+.health-pill.critical {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.branch-health-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.32rem;
+}
+
+.branch-health-chip {
+  border: 1px solid #1e3148;
+  border-inline-start-width: 3px;
+  border-radius: 4px;
+  padding: 0.22rem 0.38rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.2rem;
+  font-family: var(--font-mono);
+}
+
+.branch-health-chip .bh-name {
+  font-size: 0.6rem;
+  color: #cbd5e1;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.branch-health-chip .bh-score {
+  font-size: 0.66rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.piano-roll-controls {
+  display: flex;
+  align-items: safe center;
+  gap: 0.4rem;
+}
+
+.piano-ctrl-select {
+  background: #0d1624;
+  color: #e2e8f0;
+  border: 1px solid #334e6f;
+  border-radius: 4px;
+  padding: 0.22rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.piano-horizon-group {
+  display: inline-flex;
+  background: #0b121d;
+  border: 1px solid #2b425e;
+  border-radius: 4px;
   overflow: clip;
 }
 
-.desk-grid {
+.piano-hz-btn {
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  padding: 0.22rem 0.48rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.piano-hz-btn.active {
+  background: var(--solari-amber);
+  color: #070b10;
+}
+
+.piano-note-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.45rem;
+  background: #0b1320;
+  border: 1px solid #1e2f46;
+  border-radius: 4px;
+}
+
+.p-note-chip {
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+
+.p-note-chip.stn   { color: #7dd3fc; border-color: #38bdf8; background: rgba(14, 165, 233, 0.2); }
+.p-note-chip.bore  { color: #c7d2fe; border-color: #818cf8; background: rgba(99, 102, 241, 0.22); }
+.p-note-chip.sdo   { color: #fde68a; border-color: #fbbf24; background: rgba(245, 158, 11, 0.22); }
+.p-note-chip.turn  { color: #e9d5ff; border-color: #c084fc; background: rgba(168, 85, 247, 0.24); }
+.p-note-chip.fault { color: #fecaca; border-color: #f87171; background: rgba(239, 68, 68, 0.25); }
+.p-note-chip.evt   { color: #f8fafc; border-color: #64748b; background: #1e293b; }
+
+.hero-canvas-stage {
+  position: relative;
   flex: 1;
-  min-block-size: 0;
+  min-block-size: 220px;
+  border: 1px solid #1f334d;
+  border-radius: 6px;
+  background: #060a10;
+  overflow: clip;
+}
+
+.hero-canvas-stage canvas {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.hero-canvas-hud {
+  position: absolute;
+  inset-block-end: 6px;
+  inset-inline-start: 8px;
+  inset-inline-end: 8px;
+  background: rgba(8, 13, 21, 0.9);
+  border: 1px solid #283e5c;
+  border-inline-start: 3px solid #22d3ee;
+  border-radius: 4px;
+  padding: 0.24rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: #cbd5e1;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.desk-grid {
+  flex: 1 0 auto;
+  min-block-size: 420px;
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: 280px 260px;
   grid-template-areas:
     "fleet   station"
     "ops     analytics";
   gap: 0.7rem;
-  padding: 0.7rem;
-  overflow: auto;
-  scrollbar-gutter: stable;
-  overscroll-behavior: contain;
+  padding: 0.55rem 0.7rem 0.75rem 0.7rem;
 }
 
 .desk-q-fleet     { grid-area: fleet; }
@@ -1773,6 +1997,15 @@ progress.observe-countdown-bar::-moz-progress-bar {
   min-block-size: 0;
   min-inline-size: 0;
   overflow: clip;
+  /* Containment for high-FPS dashboard mutations (per modern-web-guidance interactions-in-complex-layouts) */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px auto 270px;
+}
+
+@supports not (content-visibility: auto) {
+  .desk-card {
+    contain: layout style paint;
+  }
 }
 
 /* Responsive Data Table (per modern-web-guidance responsive-table) */

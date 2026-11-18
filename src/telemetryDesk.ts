@@ -2,7 +2,7 @@ import { DLRSimulation } from './simulation';
 import { SchematicCanvas } from './schematicCanvas';
 import { ObserveController } from './observeController';
 import { STATION_MAP } from './dlrData';
-import { Station } from './types';
+import { Station, TrackEdge, TrackNode, Train } from './types';
 import { getStationFactSheet, renderStationMicroSchematicSVG } from './stationFactSheets';
 import { soundEngine } from './audio';
 
@@ -21,8 +21,37 @@ declare global {
   }
 }
 
-export function mountSecondMonitorDesk(fallbackSim: DLRSimulation, fallbackSchematic: SchematicCanvas, fallbackObserve: ObserveController) {
-  const openerBridge = (window.opener as Window | null)?.__dlrSimBridge;
+type HealthTier = 'OPTIMAL' | 'ELEVATED' | 'DELAYED' | 'CRITICAL';
+
+interface StationHealthInfo {
+  tier: HealthTier;
+  score: number;
+  color: string;
+  symbol: string;
+  reason: string;
+}
+
+interface PianoNote {
+  startSec: number;
+  endSec: number;
+  label: string;
+  subLabel?: string;
+  kind: 'STATION' | 'TUNNEL_BYPASS' | 'TURNBACK' | 'SDO' | 'PSA_DELAY' | 'FAULT';
+  stationId?: string;
+}
+
+const HEALTH_PALETTE: Record<HealthTier, { color: string; bg: string; symbol: string; label: string }> = {
+  OPTIMAL: { color: '#10B981', bg: 'rgba(16, 185, 129, 0.14)', symbol: '✓', label: 'OPTIMAL' },
+  ELEVATED: { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.16)', symbol: '▲', label: 'ELEVATED' },
+  DELAYED: { color: '#F97316', bg: 'rgba(249, 115, 22, 0.18)', symbol: '⚠', label: 'DELAYED' },
+  CRITICAL: { color: '#EF4444', bg: 'rgba(239, 68, 68, 0.22)', symbol: '⛔', label: 'BLOCKED' },
+};
+
+export function mountSecondMonitorDesk(
+  fallbackSim: DLRSimulation,
+  fallbackSchematic: SchematicCanvas,
+  fallbackObserve: ObserveController
+) {
   const getBridge = (): {
     sim: DLRSimulation;
     schematic: SchematicCanvas;
@@ -55,11 +84,11 @@ export function mountSecondMonitorDesk(fallbackSim: DLRSimulation, fallbackSchem
     };
   };
 
-  document.title = 'DLR SMC — 2nd Monitor Deep Telemetry, Split-Flap & Engineering Desk';
+  document.title = 'DLR SMC — 2nd Monitor Dual-Screen Overwatch, Piano Roll & Telemetry Desk';
 
   const appEl = document.getElementById('app')!;
   appEl.innerHTML = `
-    <div class="desk-shell">
+    <div class="desk-shell" id="desk-root-shell">
       <!-- TOP TELEMETRY & COMMAND RIBBON -->
       <header class="top-bar desk-top-bar">
         <div class="brand-cluster">
@@ -68,8 +97,8 @@ export function mountSecondMonitorDesk(fallbackSim: DLRSimulation, fallbackSchem
             <span class="roundel-bar">DLR</span>
           </div>
           <div class="brand-titles">
-            <h1>2ND MONITOR DEEP TELEMETRY &amp; ENGINEERING DESK</h1>
-            <p class="subtitle" id="desk-sync-subtitle">LIVE 60FPS LINK TO MONITOR 1 SCHEMATIC WALL · SELTRAC CBTC ANALYTICS</p>
+            <h1>2ND MONITOR OVERWATCH WALL &amp; DEEP TELEMETRY DESK</h1>
+            <p class="subtitle" id="desk-sync-subtitle">DUAL-SCREEN HERO OVERWATCH (NETWORK HEALTH + PIANO ROLL) + 4-DECK TELEMETRY</p>
           </div>
         </div>
 
@@ -105,15 +134,96 @@ export function mountSecondMonitorDesk(fallbackSim: DLRSimulation, fallbackSchem
         </div>
 
         <div class="utility-cluster">
+          <button type="button" id="desk-toggle-hero-size-btn" class="util-btn desk-popout-btn" title="Toggle Dual-Screen Overwatch between 58% Split View and 90% Full-Screen Wall">
+            ⛶ EXPAND DUAL SCREEN
+          </button>
           <button type="button" id="desk-fix-all-btn" class="mini-action-btn rescue-btn">🆘 HELP! FIX IT</button>
           <button type="button" id="desk-disrupt-btn" class="mini-action-btn">⚡ +DISRUPT</button>
           <button type="button" id="desk-dock-back-btn" class="util-btn accent-btn" title="Close this 2nd monitor window and restore the sidebar on Monitor 1">
-            📥 DOCK BACK TO MAIN WINDOW
+            📥 DOCK BACK
           </button>
         </div>
       </header>
 
-      <!-- 4-QUADRANT NERD DATA & ENGINEERING DASHBOARD GRID -->
+      <!-- =========================================================================
+           "SECOND SCREEN" DUAL-PANEL HERO OVERWATCH WALL (LARGE SCREEN SHARE)
+           Left Panel: Whole-Network Schematic Zoom-Out Colour-Coded by Health
+           Right Panel: Live Scrolling Piano-Roll Stock Movements & Events Sequencer
+           ========================================================================= -->
+      <section class="desk-hero-dual-wall" id="desk-hero-dual-wall" aria-label="Dual-Screen Network Health & Stock Piano Roll Overwatch">
+        <!-- LEFT HERO PANEL: WHOLE-NETWORK HEALTH SCHEMATIC ZOOM-OUT -->
+        <article class="desk-hero-panel health-map-panel">
+          <div class="hero-panel-header">
+            <div>
+              <span class="eyebrow">SECOND-SCREEN PANEL A · WHOLE-NETWORK HEALTH SCHEMATIC OVERWATCH</span>
+              <h3>All 7 Branches &amp; 45 Stations Colour-Coded by Live Operational Health</h3>
+            </div>
+            <div class="health-legend-pills" role="list" aria-label="Network Health Legend">
+              <span class="health-pill optimal" role="listitem">✓ OPTIMAL</span>
+              <span class="health-pill elevated" role="listitem">▲ ELEVATED / PSA</span>
+              <span class="health-pill delayed" role="listitem">⚠ DELAYED / HELD</span>
+              <span class="health-pill critical" role="listitem">⛔ BLOCKED / FAULT</span>
+            </div>
+          </div>
+
+          <!-- 7-Corridor Health Ribbon -->
+          <div id="desk-branch-health-strip" class="branch-health-strip" aria-label="Branch Corridor Health Scores"></div>
+
+          <!-- Full-Network Zoomed-Out Health Canvas -->
+          <div class="hero-canvas-stage" id="health-map-stage">
+            <canvas id="desk-health-map-canvas" aria-label="Zoomed-out DLR Network Schematic Colour-Coded by Health"></canvas>
+            <div id="desk-health-hover-hud" class="hero-canvas-hud">
+              Click any station or train on the Health Map to inspect &amp; pan Monitor 1
+            </div>
+          </div>
+        </article>
+
+        <!-- RIGHT HERO PANEL: LIVE SCROLLING PIANO-ROLL STOCK MOVEMENTS & EVENTS -->
+        <article class="desk-hero-panel piano-roll-panel">
+          <div class="hero-panel-header">
+            <div>
+              <span class="eyebrow">SECOND-SCREEN PANEL B · LIVE SCROLLING PIANO-ROLL SEQUENCER</span>
+              <h3>Upcoming Stock Movements, Bore Dives, SDO Stops, Turnbacks &amp; Events</h3>
+            </div>
+            <div class="piano-roll-controls">
+              <label class="sr-only" for="piano-filter-select">Filter Piano Roll Lanes</label>
+              <select id="piano-filter-select" class="piano-ctrl-select" title="Filter Stock Lanes">
+                <option value="ALL" selected>All Active Stock &amp; Events</option>
+                <option value="CORE_WEST">Bank / TWG / Lewisham (1xx–3xx)</option>
+                <option value="NORTH_EAST">Stratford / STI / Beckton / Woolwich (4xx–9xx)</option>
+                <option value="ATTENTION">Delayed / PSA / Incidents Only</option>
+              </select>
+              <div class="piano-horizon-group" role="group" aria-label="Piano Roll Time Horizon">
+                <button type="button" class="piano-hz-btn" data-horizon="360">6M</button>
+                <button type="button" class="piano-hz-btn active" data-horizon="600">10M</button>
+                <button type="button" class="piano-hz-btn" data-horizon="900">15M</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Piano Roll Note Type Legend Bar -->
+          <div class="piano-note-legend">
+            <span class="p-note-chip stn">▬ Station Call</span>
+            <span class="p-note-chip bore">≈ Sub-Aqueous Bore / WIQ Bypass</span>
+            <span class="p-note-chip sdo">▲ 60m SDO (+6s)</span>
+            <span class="p-note-chip turn">⇄ Terminus / Pocket Turnback</span>
+            <span class="p-note-chip fault">⛔ Fault / 👨‍✈️ PSA 18mph</span>
+            <span class="p-note-chip evt">◆ Timetable Wave / Event</span>
+          </div>
+
+          <!-- Scrolling Piano-Roll Canvas -->
+          <div class="hero-canvas-stage" id="piano-roll-stage">
+            <canvas id="desk-piano-roll-canvas" aria-label="Scrolling Piano-Roll Timeline of Upcoming DLR Train Movements and Events"></canvas>
+            <div id="desk-piano-hover-hud" class="hero-canvas-hud">
+              Scroll wheel to pan unit lanes · Click any train lane or note bar to focus on Monitor 1
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- =========================================================================
+           LOWER 4-DECK DEEP TELEMETRY & ENGINEERING DASHBOARD GRID
+           ========================================================================= -->
       <main class="desk-grid">
         <!-- QUADRANT 1: LIVE FULL-FLEET CBTC & VOBC TELEMETRY TABLE -->
         <section class="desk-card desk-q-fleet" aria-labelledby="fleet-table-caption">
@@ -229,11 +339,19 @@ export function mountSecondMonitorDesk(fallbackSim: DLRSimulation, fallbackSchem
     </div>
   `;
 
+  const rootShell = document.getElementById('desk-root-shell')!;
+  const toggleHeroSizeBtn = document.getElementById('desk-toggle-hero-size-btn')!;
   const clockFlap = document.getElementById('desk-clock-flap')!;
   const ppmFlap = document.getElementById('desk-ppm-flap')!;
   const unitsFlap = document.getElementById('desk-units-flap')!;
   const speedFlap = document.getElementById('desk-speed-flap')!;
   const paxFlap = document.getElementById('desk-pax-flap')!;
+  const branchHealthStrip = document.getElementById('desk-branch-health-strip')!;
+  const healthMapCanvas = document.getElementById('desk-health-map-canvas') as HTMLCanvasElement;
+  const healthHoverHud = document.getElementById('desk-health-hover-hud')!;
+  const pianoRollCanvas = document.getElementById('desk-piano-roll-canvas') as HTMLCanvasElement;
+  const pianoHoverHud = document.getElementById('desk-piano-hover-hud')!;
+  const pianoFilterSelect = document.getElementById('piano-filter-select') as HTMLSelectElement;
   const fleetBadge = document.getElementById('desk-fleet-summary-badge')!;
   const fleetTbody = document.getElementById('desk-fleet-tbody')!;
   const stationTitle = document.getElementById('desk-station-title')!;
@@ -246,16 +364,65 @@ export function mountSecondMonitorDesk(fallbackSim: DLRSimulation, fallbackSchem
   const footfallBoards = document.getElementById('desk-footfall-boards')!;
   const logList = document.getElementById('desk-log-list')!;
 
+  const healthCtx = healthMapCanvas.getContext('2d')!;
+  const pianoCtx = pianoRollCanvas.getContext('2d')!;
+
+  let pianoHorizonSec = 600; // Default 10 minutes ahead
+  let pianoFilterMode: string = 'ALL';
+  let pianoScrollOffsetRows = 0;
+  let lastStationId = '';
+  let lastFlapSigs: string[] = [];
+  let lastTemplateCount = -1;
+  let lastIncidentSig = '';
+
+  // Resize helper for the two high-DPI hero canvases
+  function resizeHeroCanvases() {
+    const dpr = window.devicePixelRatio || 1;
+    const hRect = healthMapCanvas.parentElement?.getBoundingClientRect();
+    if (hRect && hRect.width > 10 && hRect.height > 10) {
+      healthMapCanvas.width = Math.floor(hRect.width * dpr);
+      healthMapCanvas.height = Math.floor(hRect.height * dpr);
+      healthCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    const pRect = pianoRollCanvas.parentElement?.getBoundingClientRect();
+    if (pRect && pRect.width > 10 && pRect.height > 10) {
+      pianoRollCanvas.width = Math.floor(pRect.width * dpr);
+      pianoRollCanvas.height = Math.floor(pRect.height * dpr);
+      pianoCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+  }
+
+  window.addEventListener('resize', resizeHeroCanvases);
+  setTimeout(resizeHeroCanvases, 30);
+
+  toggleHeroSizeBtn.addEventListener('click', () => {
+    const isExpanded = rootShell.classList.toggle('hero-wall-expanded');
+    toggleHeroSizeBtn.classList.toggle('active', isExpanded);
+    toggleHeroSizeBtn.textContent = isExpanded ? '🗗 SPLIT VIEW (58% / 42%)' : '⛶ EXPAND DUAL SCREEN';
+    soundEngine.playRelayClick(isExpanded);
+    setTimeout(resizeHeroCanvases, 20);
+  });
+
+  pianoFilterSelect.addEventListener('change', () => {
+    pianoFilterMode = pianoFilterSelect.value;
+    pianoScrollOffsetRows = 0;
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.piano-hz-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      pianoHorizonSec = parseInt(btn.dataset.horizon || '600', 10);
+      document.querySelectorAll<HTMLButtonElement>('.piano-hz-btn').forEach((b) => {
+        b.classList.toggle('active', b === btn);
+      });
+      soundEngine.playRelayClick(true);
+    });
+  });
+
   // Populate station selector
   const initBridge = getBridge();
   stationSelect.innerHTML = initBridge.sim.stations
     .map((s) => `<option value="${s.id}">${s.code} — ${s.name} (${s.branch})</option>`)
     .join('');
-
-  let lastStationId = '';
-  let lastFlapSigs: string[] = [];
-  let lastTemplateCount = -1;
-  let lastIncidentSig = '';
 
   stationSelect.addEventListener('change', () => {
     const b = getBridge();
@@ -334,6 +501,848 @@ export function mountSecondMonitorDesk(fallbackSim: DLRSimulation, fallbackSchem
     renderDeskAll(true);
   });
 
+  // ============================================================================
+  // HEALTH EVALUATION ENGINE (Station, Edge & Branch Health Computation)
+  // ============================================================================
+  function computeStationHealthMap(sim: DLRSimulation): Record<string, StationHealthInfo> {
+    const map: Record<string, StationHealthInfo> = {};
+    const unresolved = sim.incidents.filter((i) => !i.resolved);
+
+    for (const st of sim.stations) {
+      let score = 100;
+      let reason = 'Clear Headways · On Schedule';
+
+      // Check active unresolved incidents affecting this station
+      const stInc = unresolved.find(
+        (inc) => inc.stationId === st.id || (inc.nodeId && inc.nodeId.startsWith(st.id))
+      );
+      if (stInc) {
+        score -= stInc.severity === 'CRITICAL' ? 68 : 42;
+        reason = `INCIDENT: ${stInc.title}`;
+      }
+
+      // Check stalled or delayed trains at or heading into this station
+      const nearbyTrains = sim.trains.filter((t) => {
+        const cn = sim.nodeMap[t.currentNodeId];
+        const nn = t.nextNodeId ? sim.nodeMap[t.nextNodeId] : undefined;
+        return cn?.stationId === st.id || nn?.stationId === st.id;
+      });
+
+      for (const tr of nearbyTrains) {
+        if (tr.state === 'BROKEN_DOWN') {
+          score -= 60;
+          reason = `STALLED UNIT ${tr.headcode} (VOBC Fault)`;
+        } else if (tr.delaySeconds > 75) {
+          score -= 36;
+          if (score > 45) reason = `Unit ${tr.headcode} running +${Math.round(tr.delaySeconds)}s late`;
+        } else if (tr.psaMode || tr.delaySeconds > 30) {
+          score -= 18;
+          if (score > 70) reason = tr.psaMode ? `Unit ${tr.headcode} on PSA 18mph manual` : `Minor headway drift (+${Math.round(tr.delaySeconds)}s)`;
+        }
+      }
+
+      // Check held red signals at this station
+      const stNodes = sim.nodes.filter((n) => n.stationId === st.id);
+      if (stNodes.some((n) => n.signalHeld)) {
+        score -= 35;
+        if (score > 45) reason = 'Manual Signal Hold (RED) Active';
+      }
+      if (stNodes.some((n) => n.pointsFailed)) {
+        score -= 65;
+        reason = 'Points Interlocking Failure';
+      }
+
+      // Check passenger crowd surge
+      const crowdMult = sim.stationCrowdMultiplier[st.id] || 1.0;
+      if (crowdMult > 1.35) {
+        score -= 22;
+        if (score > 65) reason = `Crowd Surge (${crowdMult.toFixed(1)}× inflow)`;
+      }
+
+      score = Math.max(8, Math.min(100, Math.round(score)));
+      const tier: HealthTier =
+        score < 45 ? 'CRITICAL' : score < 70 ? 'DELAYED' : score < 88 ? 'ELEVATED' : 'OPTIMAL';
+
+      map[st.id] = {
+        tier,
+        score,
+        color: HEALTH_PALETTE[tier].color,
+        symbol: HEALTH_PALETTE[tier].symbol,
+        reason,
+      };
+    }
+
+    return map;
+  }
+
+  // Compute health transform for the zoomed-out Whole-Network Health Canvas
+  function getHealthMapTransform(w: number, h: number) {
+    const minX = 10;
+    const maxX = 3110;
+    const minY = -20;
+    const maxY = 2110;
+    const worldW = maxX - minX;
+    const worldH = maxY - minY;
+    const padX = 24;
+    const padY = 22;
+    const availW = Math.max(120, w - padX * 2);
+    const availH = Math.max(120, h - padY * 2);
+    const scale = Math.min(availW / worldW, availH / worldH);
+    const offsetX = padX + (availW - worldW * scale) * 0.5 - minX * scale;
+    const offsetY = padY + (availH - worldH * scale) * 0.5 - minY * scale;
+    return { scale, offsetX, offsetY };
+  }
+
+  let healthStationHitBoxes: { st: Station; sx: number; sy: number; r: number; info: StationHealthInfo }[] = [];
+  let healthTrainHitBoxes: { tr: Train; sx: number; sy: number }[] = [];
+
+  function drawWholeNetworkHealthCanvas(pulseSec: number) {
+    const b = getBridge();
+    const sim = b.sim;
+    const rect = healthMapCanvas.parentElement?.getBoundingClientRect();
+    if (!rect || rect.width < 20 || rect.height < 20) return;
+    const w = rect.width;
+    const h = rect.height;
+
+    const healthMap = computeStationHealthMap(sim);
+    const { scale, offsetX, offsetY } = getHealthMapTransform(w, h);
+    const toScreen = (wx: number, wy: number) => ({
+      x: offsetX + wx * scale,
+      y: offsetY + wy * scale,
+    });
+
+    healthCtx.clearRect(0, 0, w, h);
+
+    // 1. Subtle technical grid background
+    healthCtx.fillStyle = '#060a10';
+    healthCtx.fillRect(0, 0, w, h);
+
+    healthCtx.strokeStyle = 'rgba(30, 48, 72, 0.28)';
+    healthCtx.lineWidth = 1;
+    const gridStep = 40;
+    for (let gx = 0; gx < w; gx += gridStep) {
+      healthCtx.beginPath();
+      healthCtx.moveTo(gx, 0);
+      healthCtx.lineTo(gx, h);
+      healthCtx.stroke();
+    }
+    for (let gy = 0; gy < h; gy += gridStep) {
+      healthCtx.beginPath();
+      healthCtx.moveTo(0, gy);
+      healthCtx.lineTo(w, gy);
+      healthCtx.stroke();
+    }
+
+    // 2. River Thames Geographical Context Ribbons (Greenwich Bore & Woolwich Bore)
+    const thamesWoolwichL = toScreen(2220, 1120);
+    const thamesWoolwichR = toScreen(3040, 1120);
+    healthCtx.strokeStyle = 'rgba(14, 116, 144, 0.35)';
+    healthCtx.lineWidth = Math.max(8, 28 * scale);
+    healthCtx.lineCap = 'round';
+    healthCtx.beginPath();
+    healthCtx.moveTo(thamesWoolwichL.x, thamesWoolwichL.y);
+    healthCtx.lineTo(thamesWoolwichR.x, thamesWoolwichR.y);
+    healthCtx.stroke();
+
+    const thamesGreenwichL = toScreen(860, 1690);
+    const thamesGreenwichR = toScreen(1240, 1690);
+    healthCtx.beginPath();
+    healthCtx.moveTo(thamesGreenwichL.x, thamesGreenwichL.y);
+    healthCtx.lineTo(thamesGreenwichR.x, thamesGreenwichR.y);
+    healthCtx.stroke();
+
+    healthCtx.fillStyle = '#38bdf8';
+    healthCtx.font = '700 9px monospace';
+    healthCtx.textAlign = 'center';
+    healthCtx.fillText('🌊 THAMES (WOOLWICH BORE)', (thamesWoolwichL.x + thamesWoolwichR.x) * 0.5, thamesWoolwichL.y + 3);
+    healthCtx.fillText('🌊 THAMES (CUTTY SARK)', (thamesGreenwichL.x + thamesGreenwichR.x) * 0.5, thamesGreenwichL.y + 3);
+
+    // 3. Draw All Network Edges Colour-Coded by Health
+    for (const edge of sim.edges) {
+      const n1 = sim.nodeMap[edge.from];
+      const n2 = sim.nodeMap[edge.to];
+      if (!n1 || !n2) continue;
+
+      const h1 = n1.stationId ? healthMap[n1.stationId] : undefined;
+      const h2 = n2.stationId ? healthMap[n2.stationId] : undefined;
+      const worstScore = Math.min(h1 ? h1.score : 100, h2 ? h2.score : 100);
+      const tier: HealthTier =
+        n1.trackBlocked || n2.trackBlocked || n1.pointsFailed || n2.pointsFailed || worstScore < 45
+          ? 'CRITICAL'
+          : worstScore < 70
+          ? 'DELAYED'
+          : worstScore < 88
+          ? 'ELEVATED'
+          : 'OPTIMAL';
+
+      const pts = b.schematic.getEdgePolyline(n1, n2, edge);
+      healthCtx.beginPath();
+      pts.forEach((p, idx) => {
+        const sp = toScreen(p.x, p.y);
+        if (idx === 0) healthCtx.moveTo(sp.x, sp.y);
+        else healthCtx.lineTo(sp.x, sp.y);
+      });
+
+      if (tier === 'CRITICAL') {
+        const pulseAlpha = 0.45 + 0.45 * Math.sin(pulseSec * 7);
+        healthCtx.strokeStyle = `rgba(239, 68, 68, ${pulseAlpha})`;
+        healthCtx.lineWidth = edge.isCrossover ? 2.5 : 5.5;
+        healthCtx.stroke();
+      }
+
+      healthCtx.strokeStyle = HEALTH_PALETTE[tier].color;
+      healthCtx.globalAlpha = edge.isCrossover ? 0.55 : 0.88;
+      healthCtx.lineWidth = edge.isCrossover ? 1.1 : tier === 'OPTIMAL' ? 2.0 : 2.8;
+      healthCtx.stroke();
+      healthCtx.globalAlpha = 1.0;
+    }
+
+    // 4. Draw All 45 Stations + 2 Depots with Health Color & Non-Color Badges
+    healthStationHitBoxes = [];
+    const selectedStId = b.schematic.selectedStation?.id || 'CAW';
+
+    for (const st of sim.stations) {
+      const info = healthMap[st.id] || {
+        tier: 'OPTIMAL',
+        score: 100,
+        color: '#10B981',
+        symbol: '✓',
+        reason: 'Optimal',
+      };
+      const sp = toScreen(st.x, st.y);
+      const isMajor = st.isTerminus || st.hasTurnback || st.id === 'WIQ' || st.id === 'POP' || st.id === 'CNT';
+      const r = isMajor ? 5.2 : 3.8;
+
+      healthStationHitBoxes.push({ st, sx: sp.x, sy: sp.y, r: Math.max(10, r + 5), info });
+
+      // Pulsing halo if degraded or selected
+      if (info.tier === 'CRITICAL' || info.tier === 'DELAYED') {
+        const haloR = r + 4 + 2.5 * Math.sin(pulseSec * 6);
+        healthCtx.fillStyle = info.tier === 'CRITICAL' ? 'rgba(239, 68, 68, 0.34)' : 'rgba(249, 115, 22, 0.28)';
+        healthCtx.beginPath();
+        healthCtx.arc(sp.x, sp.y, haloR, 0, Math.PI * 2);
+        healthCtx.fill();
+      }
+
+      if (st.id === selectedStId) {
+        healthCtx.strokeStyle = '#22D3EE';
+        healthCtx.lineWidth = 2;
+        healthCtx.beginPath();
+        healthCtx.arc(sp.x, sp.y, r + 5, 0, Math.PI * 2);
+        healthCtx.stroke();
+      }
+
+      // Station node circle
+      healthCtx.fillStyle = '#08101a';
+      healthCtx.strokeStyle = info.color;
+      healthCtx.lineWidth = isMajor ? 2.2 : 1.7;
+      healthCtx.beginPath();
+      healthCtx.arc(sp.x, sp.y, r, 0, Math.PI * 2);
+      healthCtx.fill();
+      healthCtx.stroke();
+
+      // Station 3-letter code pill for key stations or degraded stations
+      if (isMajor || info.tier !== 'OPTIMAL' || scale > 0.23) {
+        const lbl = info.tier !== 'OPTIMAL' ? `${info.symbol}${st.code}` : st.code;
+        healthCtx.font = isMajor || info.tier !== 'OPTIMAL' ? '700 8.5px monospace' : '600 7.5px monospace';
+        const tw = healthCtx.measureText(lbl).width + 5;
+        const lx = sp.x;
+        const ly = sp.y - r - 6;
+
+        healthCtx.fillStyle = 'rgba(7, 12, 20, 0.88)';
+        healthCtx.fillRect(lx - tw * 0.5, ly - 5.5, tw, 10);
+        healthCtx.fillStyle = info.tier === 'OPTIMAL' ? '#E2E8F0' : info.color;
+        healthCtx.textAlign = 'center';
+        healthCtx.textBaseline = 'middle';
+        healthCtx.fillText(lbl, lx, ly);
+      }
+    }
+
+    // 5. Draw Live Active Train Units with Health Color
+    healthTrainHitBoxes = [];
+    for (const tr of sim.trains) {
+      const wPos = b.schematic.getTrainWorldCoords(tr);
+      const sp = toScreen(wPos.x, wPos.y);
+      healthTrainHitBoxes.push({ tr, sx: sp.x, sy: sp.y });
+
+      const trColor =
+        tr.state === 'BROKEN_DOWN'
+          ? '#EF4444'
+          : tr.delaySeconds > 60
+          ? '#F97316'
+          : tr.psaMode || tr.delaySeconds > 25
+          ? '#F59E0B'
+          : '#22D3EE';
+
+      healthCtx.fillStyle = trColor;
+      healthCtx.strokeStyle = '#04080e';
+      healthCtx.lineWidth = 1.2;
+      healthCtx.beginPath();
+      healthCtx.roundRect(sp.x - 10, sp.y - 4.5, 20, 9, 3);
+      healthCtx.fill();
+      healthCtx.stroke();
+
+      healthCtx.fillStyle = '#04080e';
+      healthCtx.font = '800 7px monospace';
+      healthCtx.textAlign = 'center';
+      healthCtx.textBaseline = 'middle';
+      healthCtx.fillText(tr.serviceNumber, sp.x, sp.y + 0.5);
+    }
+  }
+
+  // Render the 7-Branch Corridor Health Ribbon above the Health Map Canvas
+  function renderBranchHealthRibbon() {
+    const b = getBridge();
+    const healthMap = computeStationHealthMap(b.sim);
+    const branches: { key: string; label: string; filter: (s: Station) => boolean }[] = [
+      { key: 'WEST', label: '1:WEST/BNK/TWG', filter: (s) => s.branch === 'West' },
+      { key: 'CENTRAL', label: '2:CENTRAL/DELTA', filter: (s) => s.branch === 'Central' && s.id !== 'PDP' },
+      { key: 'SOUTH', label: '3:SOUTH/LEW', filter: (s) => s.branch === 'South' },
+      { key: 'NORTH', label: '4:NORTH/STR', filter: (s) => s.branch === 'North' },
+      { key: 'STI', label: '5:STI/OLYMPIC', filter: (s) => s.branch === 'StratfordIntl' },
+      { key: 'BCK', label: '6:BECKTON', filter: (s) => s.branch === 'Beckton' && s.id !== 'BDP' },
+      { key: 'WOO', label: '7:WOOLWICH', filter: (s) => s.branch === 'Woolwich' },
+    ];
+
+    branchHealthStrip.innerHTML = branches
+      .map((br) => {
+        const sts = b.sim.stations.filter(br.filter);
+        const avgScore =
+          sts.length > 0
+            ? Math.round(sts.reduce((acc, s) => acc + (healthMap[s.id]?.score ?? 100), 0) / sts.length)
+            : 100;
+        const minScore = sts.length > 0 ? Math.min(...sts.map((s) => healthMap[s.id]?.score ?? 100)) : 100;
+        const effectiveScore = Math.round(minScore * 0.65 + avgScore * 0.35);
+        const tier: HealthTier =
+          effectiveScore < 45
+            ? 'CRITICAL'
+            : effectiveScore < 70
+            ? 'DELAYED'
+            : effectiveScore < 88
+            ? 'ELEVATED'
+            : 'OPTIMAL';
+        const pal = HEALTH_PALETTE[tier];
+        return `
+          <div class="branch-health-chip" style="border-left-color:${pal.color}; background:${pal.bg};">
+            <span class="bh-name">${br.label}</span>
+            <strong class="bh-score" style="color:${pal.color};">${pal.symbol} ${effectiveScore}%</strong>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  // Click & Hover interactions on the Whole-Network Health Map Canvas
+  healthMapCanvas.addEventListener('mousemove', (e) => {
+    const rect = healthMapCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const hitTrain = healthTrainHitBoxes.find((h) => Math.hypot(mx - h.sx, my - h.sy) < 11);
+    if (hitTrain) {
+      healthMapCanvas.style.cursor = 'pointer';
+      const tr = hitTrain.tr;
+      const destName = STATION_MAP[tr.destCode]?.name || tr.destCode;
+      healthHoverHud.innerHTML = `<strong>🚆 UNIT ${tr.headcode} → ${destName}</strong> · ${tr.cars}-Car · ${Math.round(
+        tr.speedMph
+      )} mph · ${tr.delaySeconds > 15 ? `+${Math.round(tr.delaySeconds)}s late` : 'On Time'} · <em>Click to focus on Monitor 1</em>`;
+      return;
+    }
+
+    const hitSt = healthStationHitBoxes.find((h) => Math.hypot(mx - h.sx, my - h.sy) < h.r);
+    if (hitSt) {
+      healthMapCanvas.style.cursor = 'pointer';
+      healthHoverHud.innerHTML = `<strong style="color:${hitSt.info.color}">${hitSt.info.symbol} ${hitSt.st.code} · ${hitSt.st.name}</strong> · Health: <strong>${hitSt.info.score}% (${hitSt.info.tier})</strong> — ${hitSt.info.reason} · <em>Click to inspect &amp; pan Monitor 1</em>`;
+      return;
+    }
+
+    healthMapCanvas.style.cursor = 'default';
+  });
+
+  healthMapCanvas.addEventListener('click', (e) => {
+    const rect = healthMapCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const b = getBridge();
+
+    const hitTrain = healthTrainHitBoxes.find((h) => Math.hypot(mx - h.sx, my - h.sy) < 12);
+    if (hitTrain) {
+      b.focusTrain(hitTrain.tr.id);
+      soundEngine.playRelayClick(true);
+      renderDeskAll(true);
+      return;
+    }
+
+    const hitSt = healthStationHitBoxes.find((h) => Math.hypot(mx - h.sx, my - h.sy) < h.r + 2);
+    if (hitSt) {
+      b.schematic.selectedStation = hitSt.st;
+      b.focusStation(hitSt.st.id);
+      lastStationId = '';
+      soundEngine.playRelayClick(true);
+      renderDeskAll(true);
+    }
+  });
+
+  // ============================================================================
+  // PIANO-ROLL SEQUENCER ENGINE (Upcoming Stock Movements, Bore Dives & Events)
+  // ============================================================================
+  function buildTrainPianoNotes(sim: DLRSimulation, tr: Train, nowSec: number, horizonSec: number): PianoNote[] {
+    const notes: PianoNote[] = [];
+    const currNode = sim.nodeMap[tr.currentNodeId];
+    const currStId = currNode?.stationId;
+
+    // 1. Current / immediate state note around NOW playhead
+    if (tr.state === 'BROKEN_DOWN') {
+      notes.push({
+        startSec: nowSec - 45,
+        endSec: nowSec + Math.min(horizonSec, 300),
+        label: `⛔ VOBC STALL @ ${currStId || tr.currentNodeId}`,
+        kind: 'FAULT',
+        stationId: currStId,
+      });
+      return notes;
+    }
+
+    let cursorSec = nowSec;
+
+    if (tr.state === 'DWELLING' || tr.state === 'TURNBACK') {
+      const remDwell = Math.max(8, tr.dwellRemaining || 14);
+      const isTurn = tr.state === 'TURNBACK' || tr.currentNodeId.includes('HSH') || tr.currentNodeId.includes('REV') || tr.currentNodeId === 'CAW_MID';
+      const sdo = tr.cars === 3 && (currStId === 'CUT' || currStId === 'ELV');
+      notes.push({
+        startSec: nowSec - 12,
+        endSec: nowSec + remDwell,
+        label: isTurn ? `⇄ TURN ${currStId || tr.currentNodeId}` : sdo ? `▲ ${currStId} SDO` : `▬ ${currStId || tr.currentNodeId}`,
+        kind: isTurn ? 'TURNBACK' : sdo ? 'SDO' : 'STATION',
+        stationId: currStId,
+      });
+      cursorSec = nowSec + remDwell;
+    } else {
+      // Currently moving on an edge
+      const activeEdge = tr.currentEdgeId ? sim.edgeMap[tr.currentEdgeId] : undefined;
+      const remTransit = Math.max(10, Math.round((1 - (tr.edgeProgress || 0)) * 28));
+      const isSpecialTransit =
+        activeEdge?.isTunnel || tr.currentNodeId === 'DLT_BYP_UP' || tr.nextNodeId === 'DLT_BYP_UP';
+      notes.push({
+        startSec: nowSec - 16,
+        endSec: nowSec + remTransit,
+        label: tr.psaMode
+          ? `👨‍✈️ PSA 18mph`
+          : isSpecialTransit
+          ? `≈ ${tr.nextNodeId === 'DLT_BYP_UP' ? 'WIQ BYP' : 'BORE'}`
+          : `→ ${currStId || tr.destCode}`,
+        kind: tr.psaMode ? 'PSA_DELAY' : isSpecialTransit ? 'TUNNEL_BYPASS' : 'STATION',
+        stationId: currStId,
+      });
+      cursorSec = nowSec + remTransit;
+    }
+
+    // 2. Project upcoming station stops, tunnel bores, WIQ bypass, SDO & turnback along routeQueue + return leg!
+    const tpl = sim.templates.find((t) => t.id === tr.templateId);
+    const fullStopPattern = tpl ? [...tpl.routeStations] : [tr.originCode, tr.destCode];
+    const upcomingStops: string[] = [...tr.routeQueue];
+
+    // Append return leg after turnback so the piano roll is always richly populated across the whole horizon!
+    if (upcomingStops.length > 0) {
+      const lastStop = upcomingStops[upcomingStops.length - 1];
+      const reversed = [...fullStopPattern].reverse();
+      if (reversed[0] === lastStop) {
+        upcomingStops.push(...reversed.slice(1));
+      } else {
+        upcomingStops.push(...fullStopPattern.filter((s) => s !== lastStop));
+      }
+    }
+
+    let prevStId = currStId || tr.originCode;
+    for (let i = 0; i < upcomingStops.length; i++) {
+      if (cursorSec > nowSec + horizonSec) break;
+      const stId = upcomingStops[i];
+      const st = STATION_MAP[stId];
+
+      // Check if transit between prevStId and stId crosses a deep tunnel bore or WIQ Westbound Bypass
+      const isThamesBore =
+        (prevStId === 'KGV' && stId === 'WOO') ||
+        (prevStId === 'WOO' && stId === 'KGV') ||
+        (prevStId === 'ISG' && stId === 'CUT') ||
+        (prevStId === 'CUT' && stId === 'ISG') ||
+        (prevStId === 'SHA' && stId === 'BNK') ||
+        (prevStId === 'BNK' && stId === 'SHA');
+      const isWiqBypass = prevStId === 'CAW' && stId === 'WFE';
+
+      const transitDuration = tr.psaMode ? 48 : isThamesBore ? 36 : 26;
+      if (isThamesBore || isWiqBypass) {
+        notes.push({
+          startSec: cursorSec + 2,
+          endSec: cursorSec + transitDuration - 2,
+          label: isWiqBypass ? '≈ WIQ BYP' : `≈ ${stId} BORE`,
+          kind: 'TUNNEL_BYPASS',
+          stationId: stId,
+        });
+      }
+      cursorSec += transitDuration;
+      if (cursorSec > nowSec + horizonSec) break;
+
+      const isTurnbackStop =
+        i === tr.routeQueue.length - 1 ||
+        st?.isTerminus ||
+        stId === 'BNK' ||
+        stId === 'TWG' ||
+        stId === 'LEW' ||
+        stId === 'BCK' ||
+        stId === 'WOO' ||
+        stId === 'STI';
+      const isSdoStop = tr.cars === 3 && (stId === 'CUT' || stId === 'ELV');
+      const dwellDuration = isTurnbackStop ? 32 : isSdoStop ? 24 : tr.isECS ? 10 : 18;
+
+      notes.push({
+        startSec: cursorSec,
+        endSec: cursorSec + dwellDuration,
+        label: isTurnbackStop
+          ? `⇄ ${st?.code || stId} TURN`
+          : isSdoStop
+          ? `▲ ${st?.code || stId} SDO`
+          : `▬ ${st?.code || stId}`,
+        kind: isTurnbackStop ? 'TURNBACK' : isSdoStop ? 'SDO' : tr.psaMode ? 'PSA_DELAY' : 'STATION',
+        stationId: stId,
+      });
+
+      cursorSec += dwellDuration;
+      prevStId = stId;
+    }
+
+    return notes;
+  }
+
+  let pianoRowHitBoxes: { trId?: string; stId?: string; y1: number; y2: number }[] = [];
+
+  function drawPianoRollCanvas(pulseSec: number) {
+    const b = getBridge();
+    const sim = b.sim;
+    const rect = pianoRollCanvas.parentElement?.getBoundingClientRect();
+    if (!rect || rect.width < 20 || rect.height < 20) return;
+    const w = rect.width;
+    const h = rect.height;
+
+    pianoCtx.clearRect(0, 0, w, h);
+    pianoCtx.fillStyle = '#070b12';
+    pianoCtx.fillRect(0, 0, w, h);
+
+    const keyColW = 166;
+    const rulerH = 26;
+    const gridW = Math.max(100, w - keyColW);
+    const nowSec = sim.simTimeSeconds;
+    const pastWindowSec = 90; // Show 1.5 mins of immediate history to left of NOW playhead
+    const totalWindowSec = pastWindowSec + pianoHorizonSec;
+    const startWindowSec = nowSec - pastWindowSec;
+
+    const timeToX = (tSec: number) => keyColW + ((tSec - startWindowSec) / totalWindowSec) * gridW;
+    const playheadX = timeToX(nowSec);
+
+    // Filter trains according to user dropdown
+    const filteredTrains = sim.trains.filter((t) => {
+      if (pianoFilterMode === 'CORE_WEST') {
+        return t.serviceNumber.startsWith('1') || t.serviceNumber.startsWith('2') || t.serviceNumber.startsWith('3') || t.serviceNumber.startsWith('6');
+      }
+      if (pianoFilterMode === 'NORTH_EAST') {
+        return t.serviceNumber.startsWith('4') || t.serviceNumber.startsWith('5') || t.serviceNumber.startsWith('7') || t.serviceNumber.startsWith('9');
+      }
+      if (pianoFilterMode === 'ATTENTION') {
+        return t.state === 'BROKEN_DOWN' || t.psaMode || t.delaySeconds > 25 || t.diverted;
+      }
+      return true;
+    });
+
+    const rowH = 26;
+    const eventsRowH = 28;
+    const availRowsH = Math.max(60, h - rulerH - eventsRowH);
+    const maxVisibleTrainRows = Math.max(3, Math.floor(availRowsH / rowH));
+    if (pianoScrollOffsetRows > Math.max(0, filteredTrains.length - maxVisibleTrainRows)) {
+      pianoScrollOffsetRows = Math.max(0, filteredTrains.length - maxVisibleTrainRows);
+    }
+    const visibleTrains = filteredTrains.slice(pianoScrollOffsetRows, pianoScrollOffsetRows + maxVisibleTrainRows);
+
+    // 1. Draw Vertical Time Measure & Beat Lines
+    const firstTickSec = Math.ceil(startWindowSec / 60) * 60;
+    for (let t = firstTickSec; t <= nowSec + pianoHorizonSec; t += 60) {
+      const tx = timeToX(t);
+      if (tx < keyColW || tx > w) continue;
+      const isMajor = Math.round(t / 60) % 2 === 0;
+      pianoCtx.strokeStyle = isMajor ? 'rgba(56, 189, 248, 0.18)' : 'rgba(30, 48, 72, 0.35)';
+      pianoCtx.lineWidth = isMajor ? 1.2 : 1;
+      pianoCtx.beginPath();
+      pianoCtx.moveTo(tx, rulerH);
+      pianoCtx.lineTo(tx, h);
+      pianoCtx.stroke();
+    }
+
+    // 2. Top Time Ruler Bar
+    pianoCtx.fillStyle = '#0d1624';
+    pianoCtx.fillRect(0, 0, w, rulerH);
+    pianoCtx.strokeStyle = '#253952';
+    pianoCtx.lineWidth = 1;
+    pianoCtx.beginPath();
+    pianoCtx.moveTo(0, rulerH);
+    pianoCtx.lineTo(w, rulerH);
+    pianoCtx.stroke();
+
+    pianoCtx.fillStyle = '#94a3b8';
+    pianoCtx.font = '800 9.5px monospace';
+    pianoCtx.textAlign = 'left';
+    pianoCtx.textBaseline = 'middle';
+    pianoCtx.fillText('🎹 STOCK / DIAGRAM KEY', 8, rulerH * 0.5);
+
+    for (let t = firstTickSec; t <= nowSec + pianoHorizonSec; t += 60) {
+      const tx = timeToX(t);
+      if (tx < keyColW + 24 || tx > w - 20) continue;
+      const relMin = Math.round((t - nowSec) / 60);
+      const clockPart = sim.formatSimTime(t).split(' ')[1]?.slice(0, 5) || '';
+      const lbl = relMin === 0 ? 'NOW' : relMin > 0 ? `+${relMin}m (${clockPart})` : `${relMin}m`;
+      pianoCtx.fillStyle = relMin === 0 ? '#22d3ee' : '#94a3b8';
+      pianoCtx.font = '700 8.5px monospace';
+      pianoCtx.textAlign = 'center';
+      pianoCtx.fillText(lbl, tx, rulerH * 0.5);
+    }
+
+    // 3. Row 0: ⚡ NETWORK EVENTS, CONTINGENCIES & SCHEDULED WAVE SPAWNS LANE
+    const evtY = rulerH;
+    pianoCtx.fillStyle = '#111a2b';
+    pianoCtx.fillRect(0, evtY, w, eventsRowH);
+    pianoCtx.fillStyle = '#0b121e';
+    pianoCtx.fillRect(0, evtY, keyColW, eventsRowH);
+    pianoCtx.strokeStyle = '#263a54';
+    pianoCtx.beginPath();
+    pianoCtx.moveTo(0, evtY + eventsRowH);
+    pianoCtx.lineTo(w, evtY + eventsRowH);
+    pianoCtx.stroke();
+
+    pianoCtx.fillStyle = '#fbbf24';
+    pianoCtx.font = '800 9px monospace';
+    pianoCtx.textAlign = 'left';
+    pianoCtx.fillText('⚡ EVENTS & WAVE SPAWNS', 8, evtY + eventsRowH * 0.5);
+
+    // Plot active incidents on Events lane
+    const unresolved = sim.incidents.filter((i) => !i.resolved);
+    unresolved.forEach((inc, idx) => {
+      const ix1 = Math.max(keyColW + 4, playheadX - 25 + idx * 95);
+      const ix2 = Math.min(w - 6, ix1 + 88);
+      if (ix2 > ix1) {
+        pianoCtx.fillStyle = 'rgba(239, 68, 68, 0.88)';
+        pianoCtx.beginPath();
+        pianoCtx.roundRect(ix1, evtY + 4, ix2 - ix1, eventsRowH - 8, 3);
+        pianoCtx.fill();
+        pianoCtx.fillStyle = '#ffffff';
+        pianoCtx.font = '800 8px monospace';
+        pianoCtx.textAlign = 'center';
+        pianoCtx.fillText(`⛔ ${inc.stationId || 'FAULT'}`, (ix1 + ix2) * 0.5, evtY + eventsRowH * 0.5);
+      }
+    });
+
+    // Plot upcoming template wave spawns across the horizon
+    sim.templates
+      .filter((t) => t.active)
+      .forEach((tpl, tIdx) => {
+        const intervalSec = Math.max(120, tpl.intervalMins * 60);
+        const phaseOffset = (tIdx * 47) % intervalSec;
+        const firstWave = Math.ceil((nowSec - phaseOffset) / intervalSec) * intervalSec + phaseOffset;
+        for (let waveSec = firstWave; waveSec <= nowSec + pianoHorizonSec; waveSec += intervalSec) {
+          const wx = timeToX(waveSec);
+          if (wx < playheadX + 8 || wx > w - 32) continue;
+          pianoCtx.fillStyle = '#1e293b';
+          pianoCtx.strokeStyle = tpl.color;
+          pianoCtx.lineWidth = 1.4;
+          pianoCtx.beginPath();
+          pianoCtx.roundRect(wx - 26, evtY + 5, 52, eventsRowH - 10, 3);
+          pianoCtx.fill();
+          pianoCtx.stroke();
+
+          pianoCtx.fillStyle = '#f8fafc';
+          pianoCtx.font = '700 7.5px monospace';
+          pianoCtx.textAlign = 'center';
+          pianoCtx.fillText(`◆ +${tpl.codePrefix}xx`, wx, evtY + eventsRowH * 0.5);
+        }
+      });
+
+    // 4. Draw Stock Unit Lanes (Piano Keys + Scrolling Note Bars)
+    pianoRowHitBoxes = [];
+    const noteStyleMap: Record<PianoNote['kind'], { fill: string; border: string; text: string }> = {
+      STATION: { fill: 'rgba(14, 165, 233, 0.30)', border: '#38bdf8', text: '#f0f9ff' },
+      TUNNEL_BYPASS: { fill: 'rgba(99, 102, 241, 0.34)', border: '#818cf8', text: '#e0e7ff' },
+      SDO: { fill: 'rgba(245, 158, 11, 0.36)', border: '#fbbf24', text: '#fef3c7' },
+      TURNBACK: { fill: 'rgba(168, 85, 247, 0.38)', border: '#c084fc', text: '#faf5ff' },
+      PSA_DELAY: { fill: 'rgba(249, 115, 22, 0.40)', border: '#fb923c', text: '#ffedd5' },
+      FAULT: { fill: 'rgba(239, 68, 68, 0.55)', border: '#f87171', text: '#ffffff' },
+    };
+
+    visibleTrains.forEach((tr, rowIdx) => {
+      const ry = rulerH + eventsRowH + rowIdx * rowH;
+      const isSelected = b.schematic.selectedTrain?.id === tr.id;
+      pianoRowHitBoxes.push({ trId: tr.id, y1: ry, y2: ry + rowH });
+
+      // Lane background stripe
+      pianoCtx.fillStyle = isSelected
+        ? 'rgba(34, 211, 238, 0.12)'
+        : rowIdx % 2 === 0
+        ? 'rgba(11, 18, 29, 0.75)'
+        : 'rgba(15, 24, 38, 0.75)';
+      pianoCtx.fillRect(keyColW, ry, gridW, rowH);
+
+      // Connective baseline across the train's timeline lane
+      pianoCtx.strokeStyle = 'rgba(51, 78, 111, 0.45)';
+      pianoCtx.lineWidth = 1;
+      pianoCtx.beginPath();
+      pianoCtx.moveTo(keyColW, ry + rowH * 0.5);
+      pianoCtx.lineTo(w, ry + rowH * 0.5);
+      pianoCtx.stroke();
+
+      // Render Piano Roll Note Bars for this train
+      const notes = buildTrainPianoNotes(sim, tr, nowSec, pianoHorizonSec);
+      for (const note of notes) {
+        const nx1 = Math.max(keyColW + 2, timeToX(note.startSec));
+        const nx2 = Math.min(w - 2, timeToX(note.endSec));
+        const nw = nx2 - nx1;
+        if (nw < 3) continue;
+
+        const st = noteStyleMap[note.kind];
+        pianoCtx.fillStyle = st.fill;
+        pianoCtx.strokeStyle = st.border;
+        pianoCtx.lineWidth = 1.2;
+        pianoCtx.beginPath();
+        pianoCtx.roundRect(nx1, ry + 3.5, nw, rowH - 7, 3);
+        pianoCtx.fill();
+        pianoCtx.stroke();
+
+        if (nw > 26) {
+          pianoCtx.save();
+          pianoCtx.beginPath();
+          pianoCtx.rect(nx1 + 2, ry + 3.5, nw - 4, rowH - 7);
+          pianoCtx.clip();
+          pianoCtx.fillStyle = st.text;
+          pianoCtx.font = '700 8px monospace';
+          pianoCtx.textAlign = 'left';
+          pianoCtx.textBaseline = 'middle';
+          pianoCtx.fillText(note.label, nx1 + 4, ry + rowH * 0.5 + 0.5);
+          pianoCtx.restore();
+        }
+      }
+
+      // Draw Left Tactile Piano Key Header for this train unit
+      pianoCtx.fillStyle = isSelected ? '#162c3d' : rowIdx % 2 === 0 ? '#0c1420' : '#101a29';
+      pianoCtx.fillRect(0, ry, keyColW, rowH);
+
+      // Branch colour tab on left edge of piano key
+      pianoCtx.fillStyle = tr.color;
+      pianoCtx.fillRect(0, ry + 1, 5, rowH - 2);
+
+      // Key separator line
+      pianoCtx.strokeStyle = '#1e2f46';
+      pianoCtx.lineWidth = 1;
+      pianoCtx.beginPath();
+      pianoCtx.moveTo(0, ry + rowH);
+      pianoCtx.lineTo(w, ry + rowH);
+      pianoCtx.stroke();
+
+      // Piano Key text: Headcode + Car count + Speed/Status
+      pianoCtx.fillStyle = '#f8fafc';
+      pianoCtx.font = '800 9.5px monospace';
+      pianoCtx.textAlign = 'left';
+      pianoCtx.textBaseline = 'middle';
+      pianoCtx.fillText(`${tr.headcode}`, 10, ry + rowH * 0.5);
+
+      const statusBadge =
+        tr.state === 'BROKEN_DOWN'
+          ? '⛔FLT'
+          : tr.psaMode
+          ? '👨‍✈️PSA'
+          : tr.delaySeconds > 35
+          ? `+${Math.round(tr.delaySeconds)}s`
+          : `${Math.round(tr.speedMph)}mph`;
+      const statusCol =
+        tr.state === 'BROKEN_DOWN'
+          ? '#ef4444'
+          : tr.psaMode || tr.delaySeconds > 35
+          ? '#fbbf24'
+          : '#34d399';
+
+      pianoCtx.fillStyle = '#94a3b8';
+      pianoCtx.font = '700 8px monospace';
+      pianoCtx.fillText(`${tr.cars}C`, 68, ry + rowH * 0.5);
+
+      pianoCtx.fillStyle = statusCol;
+      pianoCtx.textAlign = 'right';
+      pianoCtx.fillText(statusBadge, keyColW - 7, ry + rowH * 0.5);
+    });
+
+    // Piano Key column right border
+    pianoCtx.strokeStyle = '#334e6f';
+    pianoCtx.lineWidth = 1.5;
+    pianoCtx.beginPath();
+    pianoCtx.moveTo(keyColW, 0);
+    pianoCtx.lineTo(keyColW, h);
+    pianoCtx.stroke();
+
+    // 5. Glowing NOW Playhead Laser Line
+    const playheadPulse = 0.75 + 0.25 * Math.sin(pulseSec * 5);
+    pianoCtx.strokeStyle = `rgba(34, 211, 238, ${playheadPulse})`;
+    pianoCtx.lineWidth = 2;
+    pianoCtx.beginPath();
+    pianoCtx.moveTo(playheadX, rulerH);
+    pianoCtx.lineTo(playheadX, h);
+    pianoCtx.stroke();
+
+    // Playhead cap triangle
+    pianoCtx.fillStyle = '#22d3ee';
+    pianoCtx.beginPath();
+    pianoCtx.moveTo(playheadX - 5, rulerH);
+    pianoCtx.lineTo(playheadX + 5, rulerH);
+    pianoCtx.lineTo(playheadX, rulerH + 7);
+    pianoCtx.closePath();
+    pianoCtx.fill();
+  }
+
+  // Wheel scroll & click on Piano Roll Canvas
+  pianoRollCanvas.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 1 : -1;
+      pianoScrollOffsetRows = Math.max(0, pianoScrollOffsetRows + delta);
+    },
+    { passive: false }
+  );
+
+  pianoRollCanvas.addEventListener('mousemove', (e) => {
+    const rect = pianoRollCanvas.getBoundingClientRect();
+    const my = e.clientY - rect.top;
+    const hit = pianoRowHitBoxes.find((r) => my >= r.y1 && my <= r.y2);
+    if (hit && hit.trId) {
+      pianoRollCanvas.style.cursor = 'pointer';
+      const b = getBridge();
+      const tr = b.sim.trains.find((t) => t.id === hit.trId);
+      if (tr) {
+        const destName = STATION_MAP[tr.destCode]?.name || tr.destCode;
+        const nextStops = tr.routeQueue.slice(0, 5).join(' → ') || 'Terminus Turnback';
+        pianoHoverHud.innerHTML = `<strong>🎹 LANE ${tr.headcode} (${tr.cars}-Car → ${destName})</strong> · Upcoming Sequence: <strong>${nextStops}</strong> · <em>Click lane to focus on Monitor 1</em>`;
+      }
+    } else {
+      pianoRollCanvas.style.cursor = 'default';
+    }
+  });
+
+  pianoRollCanvas.addEventListener('click', (e) => {
+    const rect = pianoRollCanvas.getBoundingClientRect();
+    const my = e.clientY - rect.top;
+    const hit = pianoRowHitBoxes.find((r) => my >= r.y1 && my <= r.y2);
+    if (hit && hit.trId) {
+      const b = getBridge();
+      b.focusTrain(hit.trId);
+      soundEngine.playRelayClick(true);
+      renderDeskAll(true);
+    }
+  });
+
+  // ============================================================================
+  // LOWER 4-DECK TELEMETRY RENDERERS
+  // ============================================================================
   function renderDeskStationInspector(force = false) {
     const b = getBridge();
     const st: Station = b.schematic.selectedStation || STATION_MAP['CAW'];
@@ -570,6 +1579,8 @@ export function mountSecondMonitorDesk(fallbackSim: DLRSimulation, fallbackSchem
       btn.classList.toggle('active', parseFloat(btn.dataset.speed || '1') === b.sim.timeScale);
     });
 
+    renderBranchHealthRibbon();
+
     // Render Full-Fleet CBTC Telemetry Table
     fleetTbody.innerHTML = b.sim.trains
       .map((t) => {
@@ -655,6 +1666,11 @@ export function mountSecondMonitorDesk(fallbackSim: DLRSimulation, fallbackSchem
     if (!(window.opener as Window | null)?.__dlrSimBridge) {
       fallbackSim.tick(dt);
     }
+
+    // Draw both 60fps Dual-Screen Hero Canvases (Whole-Network Health Map + Scrolling Piano Roll)
+    const pulseSec = now / 1000;
+    drawWholeNetworkHealthCanvas(pulseSec);
+    drawPianoRollCanvas(pulseSec);
 
     accum += dt;
     if (accum >= 0.4) {

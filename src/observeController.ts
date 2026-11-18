@@ -228,9 +228,9 @@ export class ObserveController {
   }
 
   public getStepInterval(): number {
-    if (this.pace === 'RELAXED') return 14.3;
-    if (this.pace === 'BRISK') return 6.8;
-    return 10.2;
+    if (this.pace === 'RELAXED') return 22.0;
+    if (this.pace === 'BRISK') return 10.0;
+    return 16.0;
   }
 
   public getRemainingSeconds(): number {
