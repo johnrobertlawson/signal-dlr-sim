@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DLR SelTrac & IECC Signalling Simulator — Docklands Light Railway</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- TOP TELEMETRY & SPLIT-FLAP COMMAND RIBBON -->
+      <header class="top-bar">
+        <div class="brand-cluster">
+          <div class="dlr-roundel" aria-hidden="true">
+            <span class="roundel-circle"></span>
+            <span class="roundel-bar">DLR</span>
+          </div>
+          <div class="brand-titles">
+            <h1>POPLAR &amp; BECKTON SMC · SELTRAC CBTC</h1>
+            <p class="subtitle">UK IECC / Moving-Block Signalling &amp; Disruption Workstation</p>
+          </div>
+        </div>
+
+        <!-- Mechanical Solari Split-Flap Clock & PPM Index -->
+        <div class="split-flap-telemetry">
+          <div class="flap-group">
+            <div class="label-with-info">
+              <span class="flap-label">CONTROL CLOCK</span>
+              <button type="button" class="info-chip" interestfor="tip-clock" popovertarget="tip-clock" popovertargetaction="show" aria-label="About Control Clock">i</button>
+              <div id="tip-clock" popover="hint" class="terse-tip">
+                <strong>CONTROL CLOCK</strong> · Sim time (starts 07:30 peak). Timetables auto-dispatch trains on interval headways.
+              </div>
+            </div>
+            <div id="sim-clock-flap" class="flap-display">07:30:00</div>
+          </div>
+          <div class="flap-group">
+            <div class="label-with-info">
+              <span class="flap-label">PPM INDEX</span>
+              <button type="button" class="info-chip" interestfor="tip-ppm" popovertarget="tip-ppm" popovertargetaction="show" aria-label="About PPM Index">i</button>
+              <div id="tip-ppm" popover="hint" class="terse-tip">
+                <strong>PPM (Public Performance Measure)</strong> · % of DLR trains arriving within 120s of schedule.
+              </div>
+            </div>
+            <div id="ppm-flap" class="flap-display teal-text">95.2%</div>
+          </div>
+          <div class="flap-group">
+            <div class="label-with-info">
+              <span class="flap-label">ACTIVE UNITS</span>
+              <button type="button" class="info-chip" interestfor="tip-units" popovertarget="tip-units" popovertargetaction="show" aria-label="About Active Units">i</button>
+              <div id="tip-units" popover="hint" class="terse-tip">
+                <strong>ACTIVE UNITS</strong> · Live 2-car &amp; 3-car B07/B23 DLR train sets currently running on the network.
+              </div>
+            </div>
+            <div id="units-flap" class="flap-display">14</div>
+          </div>
+        </div>
+
+        <!-- Time Scale Controls (Pause, 0.5x, 1x, 4x, 10x) -->
+        <div class="speed-cluster" role="group" aria-label="Simulation Speed Controls">
+          <button type="button" class="speed-btn" data-speed="0" title="Pause Simulation (Space)">⏸ PAUSE</button>
+          <button type="button" class="speed-btn" data-speed="0.5" title="Slow Thinking Speed (0.5x)">0.5×</button>
+          <button type="button" class="speed-btn active" data-speed="1" title="Real-Time Speed (1x)">1×</button>
+          <button type="button" class="speed-btn" data-speed="4" title="Fast Forward (4x)">4×</button>
+          <button type="button" class="speed-btn" data-speed="10" title="Ultra Fast (10x)">10×</button>
+        </div>
+
+        <!-- Quick Sector Camera Jump Bar -->
+        <div class="sector-jump-cluster" role="group" aria-label="Camera Sector Hotkeys">
+          <button type="button" class="sector-btn" data-sector="FULL" title="Full 7-Branch Network Overview (Key 0)">0:ALL</button>
+          <button type="button" class="sector-btn active" data-sector="CORE" title="Poplar, Westferry & Canary Wharf Delta (Key 1)">1:DELTA</button>
+          <button type="button" class="sector-btn" data-sector="WEST" title="Bank, Tower Gateway & Shadwell (Key 2)">2:WEST</button>
+          <button type="button" class="sector-btn" data-sector="SOUTH" title="Isle of Dogs, Cutty Sark & Lewisham (Key 3)">3:SOUTH</button>
+          <button type="button" class="sector-btn" data-sector="EAST" title="Canning Town, ExCeL, Beckton & City Airport (Key 4)">4:EAST</button>
+          <button type="button" class="sector-btn" data-sector="NORTH" title="Stratford & Stratford International (Key 5)">5:NORTH</button>
+        </div>
+
+        <!-- Modal Dialog Triggers & Overlays -->
+        <div class="utility-cluster">
+          <button type="button" id="toggle-cbtc-btn" class="util-btn active" title="Toggle CBTC Moving-Block Braking Footprints">
+            CBTC BLOCKS: ON
+          </button>
+          <button type="button" class="info-chip" interestfor="tip-cbtc" popovertarget="tip-cbtc" popovertargetaction="show" aria-label="About CBTC Moving Blocks">i</button>
+          <div id="tip-cbtc" popover="hint" class="terse-tip">
+            <strong>SELTRAC CBTC</strong> · Driverless moving-block signalling. Green bars ahead of trains show live safe-braking footprints.
+          </div>
+
+          <button type="button" id="toggle-observe-btn" class="util-btn observe-toggle-btn" title="Let an Expert DLR Controller take the wheel and explain their live logic (Key O)">
+            👁 OBSERVE CO-PILOT: OFF
+          </button>
+          <button type="button" class="info-chip" interestfor="tip-observe" popovertarget="tip-observe" popovertargetaction="show" aria-label="About Observe Co-Pilot Mode">i</button>
+          <div id="tip-observe" popover="hint" class="terse-tip">
+            <strong>OBSERVE CO-PILOT [Key O]</strong> · Watch a veteran DLR controller take the wheel, pan to live bottlenecks, dispatch PSAs, and explain real-world DLR facts &amp; stats at your chosen pace.
+          </div>
+
+          <button type="button" id="open-timetable-btn" class="util-btn accent-btn">
+            📅 TIMETABLE &amp; EVENTS
+          </button>
+          <button type="button" id="open-index-btn" class="util-btn split-flap-btn">
+            📟 PERFORMANCE INDEX
+          </button>
+          <button type="button" id="toggle-audio-btn" class="util-btn" title="Mute / Unmute Synthesized IECC & Split-Flap Audio">
+            🔊
+          </button>
+        </div>
+      </header>
+
+      <!-- MAIN WORKSPACE -->
+      <main class="workspace">
+        <!-- Interactive Schematic Canvas -->
+        <div class="canvas-container">
+          <canvas id="schematic-canvas"></canvas>
+
+          <!-- Instant Terse Canvas Hover Info Pill (follows hovered Station, Train Berth, Signal Lamp, or Track) -->
+          <div id="canvas-terse-tooltip" class="canvas-terse-tooltip" hidden></div>
+
+          <!-- OBSERVE CO-PILOT NARRATIVE & TELEMETRY POPUP HUD (Visible when Observe Mode is ON) -->
+          <section id="observe-hud-card" class="observe-hud-card" hidden aria-live="polite">
+            <div class="observe-hud-header">
+              <div class="observe-persona">
+                <span class="observe-avatar">👨‍✈️</span>
+                <div>
+                  <span class="observe-eyebrow">POPLAR SMC · CHIEF CONTROLLER CO-PILOT</span>
+                  <h3 id="observe-callout-title">Scanning DLR Network Headways…</h3>
+                </div>
+              </div>
+              <span id="observe-callout-tag" class="observe-tag-pill">CONTROLLER LOGIC</span>
+            </div>
+
+            <p id="observe-callout-rationale" class="observe-rationale">
+              I have taken the wheel. I will pan across the network, resolve VOBC &amp; junction faults, and explain the signalling logic and real-world DLR engineering as we go.
+            </p>
+
+            <!-- Data / Stat / Fact Callout Strip -->
+            <div class="observe-stat-callout">
+              <span class="stat-icon">📊</span>
+              <span id="observe-callout-stat">SelTrac Moving-Block Supervision Active · 45 Stations</span>
+            </div>
+
+            <!-- On-the-Fly Customisation Bar -->
+            <div class="observe-controls-bar">
+              <div class="observe-select-group">
+                <label for="observe-focus-select">FOCUS</label>
+                <select id="observe-focus-select">
+                  <option value="BALANCED">Balanced (Ops + DLR Lore)</option>
+                  <option value="CRISIS_RECOVERY">Crisis &amp; Fault Recovery</option>
+                  <option value="DLR_LORE_STATS">DLR Engineering &amp; Stats Tour</option>
+                  <option value="TIMETABLE_MASTERY">Peak Timetable &amp; Turnbacks</option>
+                </select>
+              </div>
+              <div class="observe-select-group">
+                <label for="observe-pace-select">PACE</label>
+                <select id="observe-pace-select">
+                  <option value="RELAXED">Relaxed (9.5s)</option>
+                  <option value="NORMAL" selected>Normal (6.8s)</option>
+                  <option value="BRISK">Brisk (4.5s)</option>
+                </select>
+              </div>
+              <button type="button" id="observe-next-step-btn" class="observe-action-btn" title="Ask Co-Pilot for next insight or action immediately (Key N)">
+                ⏭ NEXT INSIGHT
+              </button>
+              <button type="button" id="observe-take-wheel-btn" class="observe-action-btn take-wheel" title="Exit Observe Mode and take back manual control (Key O)">
+                🛞 TAKE THE WHEEL
+              </button>
+            </div>
+          </section>
+
+          <!-- Top-Left NX / Signalling Status Banner -->
+          <div id="nx-status-banner" class="nx-status-banner">
+            <span class="status-dot green"></span>
+            <span id="nx-status-text">ARS AUTO-ROUTING ACTIVE · Hover or click any [i], Station, Train, or Signal for instant terse info</span>
+            <button type="button" class="info-chip" style="pointer-events:auto;" interestfor="tip-nx" popovertarget="tip-nx" popovertargetaction="show" aria-label="About ARS and NX Signalling">i</button>
+            <div id="tip-nx" popover="hint" class="terse-tip">
+              <strong>ARS vs NX ROUTING</strong> · ARS sets routes automatically. Click any Entry signal then Exit signal to force a manual white NX route. Shift+Click a signal to hold it RED.
+            </div>
+          </div>
+
+          <!-- Bottom-Left Legend & Context-Sensitive Keyboard Shortcuts Bar -->
+          <div class="bottom-hud-stack">
+            <div id="dynamic-hotkey-bar" class="dynamic-hotkey-bar" aria-live="polite">
+              <span class="hk-badge"><kbd>SPACE</kbd> Pause/Resume</span>
+              <span class="hk-badge"><kbd>0</kbd>–<kbd>5</kbd> Jump Sector</span>
+              <span class="hk-badge"><kbd>B</kbd> Toggle CBTC</span>
+              <span class="hk-badge"><kbd>T</kbd> Timetables</span>
+              <span class="hk-badge"><kbd>I</kbd> Perf Index</span>
+              <span class="hk-badge"><kbd>D</kbd> +Disruption</span>
+            </div>
+            <div class="schematic-legend">
+              <div class="legend-item"><span class="swatch occupied"></span> Track Occupied</div>
+              <div class="legend-item"><span class="swatch cbtc"></span> CBTC Safe Footprint</div>
+              <div class="legend-item"><span class="swatch locked"></span> NX Locked Route</div>
+              <div class="legend-item"><span class="swatch psa"></span> PSA Manual 18mph</div>
+              <div class="legend-item"><span class="swatch two-car"></span> [2C] 2-Car Max</div>
+              <button type="button" class="info-chip" style="pointer-events:auto;" interestfor="tip-legend" popovertarget="tip-legend" popovertargetaction="show" aria-label="About Schematic Legend">i</button>
+              <div id="tip-legend" popover="hint" class="terse-tip">
+                <strong>TRACK COLOURS</strong> · Red = Train occupying block. Green glow = CBTC braking zone. White = Locked NX route. [2C] = Short platform (Tower Gateway, Cutty Sark, Elverson Rd).
+              </div>
+            </div>
+          </div>
+
+          <!-- FLOATING ACTION INSET: "NEXT BLOCKING EVENT TO ADDRESS" & CONTINGENCY PLANS -->
+          <aside class="action-inset" aria-label="Operational Action Inset">
+            <div class="inset-header">
+              <div class="inset-title-row">
+                <span class="pulse-indicator"></span>
+                <h2>PRIORITY ACTION INSET</h2>
+                <button type="button" class="info-chip" interestfor="tip-inset" popovertarget="tip-inset" popovertargetaction="show" aria-label="About Priority Action Inset">i</button>
+                <div id="tip-inset" popover="hint" class="terse-tip">
+                  <strong>ACTION INSET</strong> · Lists live blocking faults &amp; crowd surges. Click LOCATE to jump there, or click a blue action button to dispatch a PSA / short-turn trains.
+                </div>
+              </div>
+              <div class="inset-actions">
+                <button type="button" id="random-disruption-btn" class="mini-action-btn" title="Trigger a realistic DLR operational disruption">
+                  ⚡ +DISRUPTION
+                </button>
+              </div>
+            </div>
+
+            <!-- Active Blocking Incidents List -->
+            <div id="active-incidents-container" class="incidents-scroll"></div>
+
+            <!-- One-Click DLR Disruption Contingency Plans -->
+            <div class="contingency-section">
+              <div class="section-header-bar">
+                <span>1-CLICK CONTINGENCY PLANS (ARS OVERRIDE)</span>
+                <button type="button" class="info-chip" interestfor="tip-cp" popovertarget="tip-cp" popovertargetaction="show" aria-label="About Contingency Plans">i</button>
+                <div id="tip-cp" popover="hint" class="terse-tip">
+                  <strong>CONTINGENCY PLANS (F1–F4)</strong> · 1-click rules that automatically short-turn or divert entire branches around a blocked tunnel or broken train.
+                </div>
+              </div>
+              <div id="contingency-plans-list" class="contingency-grid"></div>
+            </div>
+          </aside>
+        </div>
+
+        <!-- RIGHT SIDEBAR: SOLARI SPLIT-FLAP STATION BOARD, TRAIN INSPECTOR & TELEMETRY LOG -->
+        <aside class="right-panel">
+          <!-- Station Split-Flap Departure Board -->
+          <section class="panel-card station-board-card">
+            <div class="card-header">
+              <div>
+                <div class="label-with-info">
+                  <span class="eyebrow">SOLARI SPLIT-FLAP DEPARTURE BOARD</span>
+                  <button type="button" class="info-chip" interestfor="tip-board" popovertarget="tip-board" popovertargetaction="show" aria-label="About Split-Flap Board">i</button>
+                  <div id="tip-board" popover="hint" class="terse-tip">
+                    <strong>SPLIT-FLAP BOARD</strong> · Shows next 5 trains for the clicked station. Double-click any station on the map or click 📋 FACT SHEET for its zoomed-in track schematic &amp; gotchas.
+                  </div>
+                </div>
+                <h3 id="selected-station-title">CAW · Canary Wharf</h3>
+              </div>
+              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.3rem;">
+                <span id="selected-station-badges" class="station-meta-badge">3-CAR · TURNBACK</span>
+                <button type="button" id="open-station-factsheet-btn" class="factsheet-trigger-btn" title="Open zoomed-in Station Fact Sheet, Track Schematic & Gotchas (Key S or Double-Click station)">
+                  📋 FACT SHEET [S]
+                </button>
+              </div>
+            </div>
+            <div id="station-split-flap-rows" class="split-flap-board"></div>
+          </section>
+
+          <!-- Selected Train / Unit Control Inspector -->
+          <section class="panel-card train-inspector-card">
+            <div class="card-header">
+              <div>
+                <div class="label-with-info">
+                  <span class="eyebrow">SELTRAC VOBC UNIT INSPECTOR</span>
+                  <button type="button" class="info-chip" interestfor="tip-vobc" popovertarget="tip-vobc" popovertargetaction="show" aria-label="About VOBC Unit Inspector">i</button>
+                  <div id="tip-vobc" popover="hint" class="terse-tip">
+                    <strong>VOBC &amp; PSA RECOVERY</strong> · Vehicle On-Board Computer drives DLR trains automatically. If it faults, dispatch a PSA (Passenger Service Agent) to drive manually at 18 mph.
+                  </div>
+                </div>
+                <h3 id="selected-train-title">Select a Train Berth</h3>
+              </div>
+              <span id="selected-train-state" class="train-state-pill">STANDBY</span>
+            </div>
+            <div id="train-inspector-body" class="train-inspector-body">
+              <p class="muted-hint">Click any moving or dwelling train berth on the schematic to inspect passenger load, dispatch a PSA for 18 mph manual recovery, or divert to an alternate terminus.</p>
+            </div>
+          </section>
+
+          <!-- Live Signalling & ARS Event Log -->
+          <section class="panel-card log-card">
+            <div class="card-header">
+              <div class="label-with-info">
+                <span class="eyebrow">IECC / SELTRAC EVENT TELEMETRY</span>
+                <button type="button" class="info-chip" interestfor="tip-log" popovertarget="tip-log" popovertargetaction="show" aria-label="About Event Telemetry Log">i</button>
+                <div id="tip-log" popover="hint" class="terse-tip">
+                  <strong>EVENT LOG</strong> · Chronological feed of ARS route settings, manual NX locks, PSA interventions, and timetable changes.
+                </div>
+              </div>
+              <span id="log-count-badge" class="station-meta-badge">LIVE</span>
+            </div>
+            <div id="telemetry-log-list" class="telemetry-log-list"></div>
+          </section>
+        </aside>
+      </main>
+
+      <!-- MODAL 1: TIMETABLE, SPECIAL EXCEPTIONS & SCOPED DISRUPTION GENERATOR -->
+      <dialog id="timetable-dialog" closedby="any" aria-labelledby="timetable-dialog-title">
+        <div class="dialog-shell">
+          <header class="dialog-header">
+            <div>
+              <span class="eyebrow">DLR SERVICE SPECIFICATION &amp; SCENARIO GENERATOR</span>
+              <h2 id="timetable-dialog-title">Editable Timetable Templates, Exceptions &amp; Randomiser</h2>
+            </div>
+            <button type="button" class="dialog-close-btn" id="close-timetable-btn" aria-label="Close Timetable Modal">✕</button>
+          </header>
+
+          <div class="dialog-content-grid">
+            <!-- Left column: Base Interval Templates -->
+            <div class="dialog-col">
+              <h3>1. Core DLR Service Interval Templates</h3>
+              <p class="dialog-sub">Adjust service frequencies (mins), toggle 2-car vs 3-car formations, or suspend branches.</p>
+              <div id="timetable-templates-list" class="templates-list"></div>
+            </div>
+
+            <!-- Right column: Special Event Exceptions & Scoped Randomiser -->
+            <div class="dialog-col">
+              <h3>2. One-Click Special Event Exceptions &amp; ECS</h3>
+              <p class="dialog-sub">Inject real-world DLR timetable exceptions (airshows, banking conventions, ExCeL exhibitions, or non-passenger depot transfers).</p>
+              <div class="exception-cards-grid">
+                <button type="button" class="exception-preset-btn" data-exception="AIRSHOW">
+                  <strong>✈️ City Airport Airshow Surge</strong>
+                  <span>Adds 3-car Stratford ↔ London City Airport charter shuttle (7xx series)</span>
+                </button>
+                <button type="button" class="exception-preset-btn" data-exception="BANKING_CAW">
+                  <strong>🏦 Canary Wharf Banking Summit</strong>
+                  <span>Adds high-frequency 3-min Bank ↔ Canary Wharf P3 turnback shuttle</span>
+                </button>
+                <button type="button" class="exception-preset-btn" data-exception="EXCEL_CUH">
+                  <strong>🏛️ ExCeL Trade Fair Shuttle</strong>
+                  <span>Adds Canning Town ↔ Custom House turnback shuttle for exhibition crowds</span>
+                </button>
+                <button type="button" class="exception-preset-btn" data-exception="ECS_TRANSFER">
+                  <strong>🛠️ Non-Passenger ECS Depot Run</strong>
+                  <span>Dispatches empty coaching stock transfer from Poplar Depot to Beckton Depot</span>
+                </button>
+              </div>
+
+              <h3 style="margin-top: 1.25rem;">3. 'Randomise For Me' Scoped Scenario Generator</h3>
+              <p class="dialog-sub">Generate a balanced surprise operational challenge within your chosen scope.</p>
+              <div class="randomiser-controls">
+                <select id="randomiser-scope-select" aria-label="Disruption Scope">
+                  <option value="ALL">Balanced Mix (Any Branch / VOBC / Points / Crowds)</option>
+                  <option value="VOBC_BREAKDOWN">Train VOBC Loss of Telemetry (Requires PSA Manual Drive)</option>
+                  <option value="POINTS_FAILURE">Junction Points Detection Failure (Requires Turnback / SLW)</option>
+                  <option value="CROWD_SURGE">Sudden Passenger Crowd Surge (ExCeL / Airport / Canary Wharf)</option>
+                  <option value="TUNNEL_BLOCK">Sub-Aqueous Thames Bore / Bank Tunnel Track Lockout</option>
+                </select>
+                <button type="button" id="trigger-scoped-random-btn" class="primary-cta-btn">
+                  🎲 GENERATE SCOPED EVENT NOW
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </dialog>
+
+      <!-- MODAL 2: SPLIT-FLAP PERFORMANCE INDEX & NETWORK ANALYTICS -->
+      <dialog id="index-dialog" closedby="any" aria-labelledby="index-dialog-title">
+        <div class="dialog-shell">
+          <header class="dialog-header">
+            <div>
+              <span class="eyebrow">SOLARI SPLIT-FLAP NETWORK TELEMETRY</span>
+              <h2 id="index-dialog-title">DLR Operational Performance Index &amp; Rare Route Board</h2>
+            </div>
+            <button type="button" class="dialog-close-btn" id="close-index-btn" aria-label="Close Performance Index Modal">✕</button>
+          </header>
+
+          <div id="performance-index-content" class="index-dashboard-grid"></div>
+        </div>
+      </dialog>
+
+      <!-- MODAL 3: ZOOMED-IN STATION FACT SHEET, MICRO-SCHEMATIC & GOTCHAS -->
+      <dialog id="station-factsheet-dialog" closedby="any" aria-labelledby="factsheet-dialog-title">
+        <div class="dialog-shell">
+          <header class="dialog-header">
+            <div>
+              <span id="factsheet-eyebrow" class="eyebrow">DLR STATION ENGINEERING &amp; SIGNALLING FACT SHEET</span>
+              <h2 id="factsheet-dialog-title">CAW · Canary Wharf</h2>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <select id="factsheet-station-Hopper" class="factsheet-station-select" aria-label="Switch Station Fact Sheet"></select>
+              <button type="button" class="dialog-close-btn" id="close-factsheet-btn" aria-label="Close Station Fact Sheet Modal">✕</button>
+            </div>
+          </header>
+
+          <div id="station-factsheet-content" class="factsheet-body"></div>
+        </div>
+      </dialog>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
