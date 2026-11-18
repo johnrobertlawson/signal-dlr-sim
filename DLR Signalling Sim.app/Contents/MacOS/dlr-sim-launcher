@@ -10,7 +10,7 @@ if [ -d "$NVM_DIR/versions/node" ]; then
 fi
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-REPO_DIR="/Users/johnlawson/.gemini/antigravity/scratch/signal-dlr-sim"
+REPO_DIR="/Users/johnlawson/Documents/GitHub/signal-dlr-sim"
 cd "$REPO_DIR" || exit 1
 
 # Pick port 5173 (or next free port if 5173 is already in use)
