@@ -1091,12 +1091,14 @@ export function mountSecondMonitorDesk(
     pianoCtx.textBaseline = 'middle';
     pianoCtx.fillText('🎹 STOCK / DIAGRAM KEY', 8, rulerH * 0.5);
 
+    const labelStepSec = pianoHorizonSec >= 600 ? 120 : 60;
     for (let t = firstTickSec; t <= nowSec + pianoHorizonSec; t += 60) {
       const tx = timeToX(t);
-      if (tx < keyColW + 24 || tx > w - 20) continue;
+      if (tx < keyColW + 24 || tx > w - 24) continue;
       const relMin = Math.round((t - nowSec) / 60);
+      if (relMin !== 0 && Math.abs(t - firstTickSec) % labelStepSec !== 0) continue;
       const clockPart = sim.formatSimTime(t).split(' ')[1]?.slice(0, 5) || '';
-      const lbl = relMin === 0 ? 'NOW' : relMin > 0 ? `+${relMin}m (${clockPart})` : `${relMin}m`;
+      const lbl = relMin === 0 ? '▼ NOW' : relMin > 0 ? `+${relMin}m (${clockPart})` : `${relMin}m`;
       pianoCtx.fillStyle = relMin === 0 ? '#22d3ee' : '#94a3b8';
       pianoCtx.font = '700 8.5px monospace';
       pianoCtx.textAlign = 'center';
