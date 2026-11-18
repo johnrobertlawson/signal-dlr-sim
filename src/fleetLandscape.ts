@@ -1,4 +1,7 @@
 import { drawRailTraffic, drawRoadTraffic, drawRiverBoat } from './fleetSceneryTraffic';
+import { drawCrossing } from './fleetCrossing';
+import { drawDepotBlock } from './fleetDepot';
+import { drawGreenway, drawMarshBirds } from './fleetParks';
 import { drawSite, sectionSite } from './fleetLandmarks';
 import type { TrackEdge, TrackNode } from './types';
 
@@ -81,7 +84,7 @@ function building(x: number, z: number, h: number, length: number, n: number, ca
 }
 
 export function drawLandscape(kind: ReturnType<typeof landscape>, cameraZ: number, seed: number,
-  section: string, length: number, seconds: number, brush: SceneryBrush) {
+  section: string, length: number, seconds: number, brush: SceneryBrush, shed?: number, crossing?: 'above' | 'below') {
   const { ground, face, side, railLevel, lamp } = brush;
   const site = sectionSite(section,length);
   const waterWidth = section === 'CNT-EIR' ? 70 : section === 'DEP-GRE' ? 29 : 0;
@@ -109,6 +112,7 @@ export function drawLandscape(kind: ReturnType<typeof landscape>, cameraZ: numbe
     if (road && !riverBlock) roadSurface(z,18,brush);
     if (otherRail) railCorridor(z,brush);
   }
+  let birds = false;
   for (const i of blocks) {
     const z = i*44, n = Math.abs(i*13+seed)%11;
     if (waterWidth && z < waterMid+waterWidth/2 && z+44 > waterMid-waterWidth/2) {
@@ -144,6 +148,12 @@ export function drawLandscape(kind: ReturnType<typeof landscape>, cameraZ: numbe
     } else if (kind === 'park' && n%3===0) {
       building(50+n,z,5+n*0.6,17,n,cameraZ,brush);
     }
+    if (kind === 'park' || kind === 'terraces') {
+      // The near verge fits between the houses and the railway. Keep it
+      // clear on sections already occupied by a parallel main line.
+      if (!otherRail || kind === 'park') drawGreenway(z, kind === 'park' ? 10 : -12, n, brush);
+    }
+    if (crossing && Math.floor(length/2/44) === i) drawCrossing(length/2, crossing==='above', kind==='cutting', brush);
     if (site && Math.floor(site.z/44)===i) drawSite(site,cameraZ,brush);
     if (kind === 'airfield') {
       ground('#454e55', 16, 49, -0.75, z, z+44);
@@ -167,10 +177,14 @@ export function drawLandscape(kind: ReturnType<typeof landscape>, cameraZ: numbe
         ground('#b3b7b6', 52,60,17,z-2,z+5);
       }
     } else if (kind === 'park') {
-      for (const x of [-18-n, 16+n]) {
+      for (const x of [-18-n, 29+n]) {
         side('#64564b', x, -1, 3.4, z,z+0.65);
         face('#49634f',[x-3,2,z],[x-4,4,z+1],[x-1,7+n*0.19,z+2],[x+2,6,z+1],[x+3,2,z]);
         face('#708256',[x-1,7+n*0.19,z+2],[x+3,5,z+3],[x+4,2,z+3],[x+1,2,z+1]);
+      }
+      if (n === 5 && Math.abs(z+22-cameraZ)<100) {
+        drawMarshBirds(z, seconds, brush);
+        birds = true;
       }
     } else if (kind === 'quays') {
       ground('#58818b', -85,-8,-1.6,z,z+44);
@@ -206,10 +220,7 @@ export function drawLandscape(kind: ReturnType<typeof landscape>, cameraZ: numbe
         side('#b7bcaf',-20,11.5,12.2,z-2,z+2);
         lamp('white',[-20,11.8,z],1.6);
       }
-      for (const x of [-8,-12,-16]) {
-        ground('#716e65',x-1.4,x+1.4,-0.19,z,z+44);
-        for (const r of [-0.72,0.72]) ground('#9da3a0',x+r-0.05,x+r+0.05,0,z,z+44);
-      }
+      drawDepotBlock(z, shed, brush);
     } else if (kind === 'towers') {
       const x = -26-n, h = 19+n*2.5;
       side('#698796',x,-3,h,z,z+17);
@@ -233,9 +244,9 @@ export function drawLandscape(kind: ReturnType<typeof landscape>, cameraZ: numbe
       }
       ground('#bdb7a6',-15,-14.8,-0.23,z+3,z+9);
     }
-    if (kind === 'yard') {
+    if (kind === 'yard' && (shed === undefined || Math.abs(z+22-shed)>106)) {
       // Corrugated depot sheds, roller doors and illuminated lintels.
-      const x = 17+n*0.3;
+      const x = 24+n*0.3;
       building(x,z+3,6,28,n,cameraZ,brush);
       for (const k of [5,15,25]) {
         side('#475760',x,0.2,4.6,z+k,z+k+4.2);
@@ -247,5 +258,5 @@ export function drawLandscape(kind: ReturnType<typeof landscape>, cameraZ: numbe
       building(29+n*0.4,z+3,4+n*0.6,18,n,cameraZ,brush);
     }
   }
-  return road || otherRail || (waterWidth > 0 && Math.abs(cameraZ-waterMid) < 260);
+  return birds || road || otherRail || (waterWidth > 0 && Math.abs(cameraZ-waterMid) < 260);
 }

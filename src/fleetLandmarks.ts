@@ -29,6 +29,12 @@ export function drawSite(site: NonNullable<ReturnType<typeof sectionSite>>, came
     }
     face('#a2b2b7',[x+10,52,z-12],[x+10,52,z+12],[x,65,z]);
     face('#d2d3c5',[x-10,52,near],[x+10,52,near],[x,65,z]);
+    // After dark a tiny train appears in the office lights below the pyramid.
+    for (const [row,windows] of ['1110111','1010101','1111111','0100010'].entries()) {
+      for (let col=0;col<windows.length;col++) {
+        if (windows[col]==='1') lamp('warm',[x+10.1,49-row*1.6,z-6+col*1.9],0.53);
+      }
+    }
     lamp('red',[x,65,z],0.7);
   } else if (kind === 'stadium') {
     // Faceted bowl, white roof rim and raking floodlight pylons.

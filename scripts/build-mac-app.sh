@@ -10,8 +10,9 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
+release_version=$(node -p "require(process.argv[1]).version" "$REPO_DIR/package.json")
 # 1. Create Info.plist
-cat > "$CONTENTS_DIR/Info.plist" << 'EOF'
+cat > "$CONTENTS_DIR/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -33,9 +34,9 @@ cat > "$CONTENTS_DIR/Info.plist" << 'EOF'
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.1.0</string>
+  <string>$release_version</string>
   <key>CFBundleVersion</key>
-  <string>2</string>
+  <string>$release_version</string>
   <key>LSMinimumSystemVersion</key>
   <string>12.0</string>
   <key>NSHighResolutionCapable</key>

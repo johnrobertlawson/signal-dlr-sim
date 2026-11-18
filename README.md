@@ -9,8 +9,14 @@ An interactive UK train signalling, timetable, and service control workstation f
 Download the installer for your computer from the [latest release](https://github.com/johnrobertlawson/signal-dlr-sim/releases/latest). The game and its local server are bundled. A graphical browser displays the simulator.
 
 - **Mac, Intel or Apple silicon (macOS 13+)** — Open the universal `.pkg`. Launch **DLR Signalling Sim** from Applications and drag it to the Dock to keep it there. The local-build installer is unsigned. macOS may require approval in **System Settings → Privacy & Security**.
-- **Ubuntu Desktop** — Open the `.deb` in a package installer. Choose `amd64` for Intel/AMD or `arm64` for ARM. The package manager installs missing browser and desktop-launch dependencies. Launch **DLR Signalling Sim** from Show Applications. The command-line installation equivalent is `sudo apt install ./dlr-signalling-sim_1.2.0_amd64.deb` from the downloads folder.
+- **Ubuntu Desktop** — Open the `.deb` in a package installer. Choose `amd64` for Intel/AMD or `arm64` for ARM. The package manager installs missing browser and desktop-launch dependencies. Launch **DLR Signalling Sim** from Show Applications. The command-line installation equivalent is `sudo apt install ./dlr-signalling-sim_1.3.0_amd64.deb` from the downloads folder.
 - Both installers open a dedicated window with a compatible Chromium browser, or a tab in the system browser. Closing the final game window releases the local server. Source checkout and Node.js are only needed for development.
+
+### Cameras and map labels
+
+Open **3rd Monitor Camera** and choose **CCTV patrol** from the **Feed** menu. The view changes every 12 seconds, even before the first train enters service. Watch the Minories entrance, a Royal Docks lift concourse, platforms, a maintenance road, the Greenwich tunnel mouth, and the busier Delta approach. The patrol also visits the airport and cableway, with a skyline channel after dark. Moving camera feeds aim for 30 fps and adapt to rendering cost.
+
+The signalling map opens with routine labels tucked away. Hover a station or depot berth for details, use **Labels** for the engineering overlay, or open **Map key & shortcuts**. The second monitor highlights degraded stations and shows details when you point at a station, train, or corridor indicator.
 
 ### Watch London City Airport
 

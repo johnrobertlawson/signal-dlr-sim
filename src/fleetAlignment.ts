@@ -11,6 +11,7 @@ const railHeights: Record<string, number> = {
   GRE: 1, DEP: 8, ELV: 2, LEW: 1, STI: -3, STR: 1, STR_BAY: 7, PML: 8,
   SHS: -2, ABB: 0, WHM: 1, STL: 2, RVC: 8, CUH: 3, PRR: 3,
   RAL: 6, WSV: 11, PDK: 13, LCA: 7, KGV: 2, WOO: -9, PDP: 1, BDP: 1,
+  BOW: 5, DEV: 2, LAN: 3, ALL: 6, BKP: 2, CYP: 1, GAL: 5, BCK: 2,
   DLT_BYP_UP: 4,
 };
 function railHeight(node: TrackNode) {
@@ -27,7 +28,8 @@ function alignment(sim: DLRSimulation, edges: TrackEdge[], origin: Position, sta
   let end = startDistance;
   for (const edge of edges) {
     const from = railHeight(sim.nodeMap[edge.from]), to = railHeight(sim.nodeMap[edge.to]);
-    const crest = edge.isTunnel ? -2.5 : edge.isFlyover ? 3 : 0;
+    const diveUnder = edge.from === 'DLT_BYP_UP' || edge.to === 'DLT_BYP_UP';
+    const crest = edge.isTunnel ? -2.5 : diveUnder ? -1.2 : edge.isFlyover ? 3 : 0;
     grades.push({ start: end, length: Math.max(120, edge.lengthMeters), from, to, crest });
     const points = getEdgePolyline(sim.nodeMap[edge.from], sim.nodeMap[edge.to], edge);
     const lengths = points.slice(1).map((p, i) => Math.hypot(p.x - points[i].x, p.y - points[i].y));
@@ -104,7 +106,7 @@ export function fleetAlignment(sim: DLRSimulation, unit: Pick<Train, 'currentEdg
       for (const road of sim.adjacency[nodeId] ?? []) {
         if (road === chosen || road.to === edge.from || road.isTunnel || road.isCrossover) continue;
         const branch = alignment(sim, [road], main.at(distance));
-        branches.push({ path: branch, length: Math.min(170, road.lengthMeters) });
+        branches.push({ edge: road, path: branch, length: Math.min(170, road.lengthMeters) });
       }
     }
   }

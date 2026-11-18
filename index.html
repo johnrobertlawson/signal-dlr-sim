@@ -22,8 +22,7 @@
             <span class="roundel-bar">DLR</span>
           </div>
           <div class="brand-titles">
-            <h1>POPLAR &amp; BECKTON SMC · SELTRAC CBTC</h1>
-            <p class="subtitle">UK IECC / Moving-Block Signalling &amp; Disruption Workstation</p>
+            <h1>POPLAR &amp; BECKTON SMC</h1>
           </div>
         </div>
 
@@ -79,15 +78,15 @@
         </div>
 
         <!-- Quick Sector Camera Jump Bar -->
-        <div class="sector-jump-cluster" role="group" aria-label="Camera Sector Hotkeys">
-          <button type="button" class="sector-btn" data-sector="FULL" title="Full 7-Branch Network Overview (Key 0)">0:ALL</button>
-          <button type="button" class="sector-btn active" data-sector="CORE" title="Poplar, Westferry & West India Quay 4-Track Bypass Delta (Key 1)">1:DELTA/WIQ</button>
-          <button type="button" class="sector-btn" data-sector="WEST" title="Bank Deep-Tube Bore, Tower Gateway & Shadwell (Key 2)">2:WEST</button>
-          <button type="button" class="sector-btn" data-sector="SOUTH" title="Isle of Dogs, Cutty Sark Bore & Lewisham (Key 3)">3:SOUTH</button>
-          <button type="button" class="sector-btn" data-sector="EAST" title="Canning Town, ExCeL & Beckton Multi-Road Depot (Key 4)">4:BECKTON</button>
-          <button type="button" class="sector-btn" data-sector="NORTH" title="Stratford International (STI), Stratford Regional (STR) & Poplar Depot (Key 5)">5:STR/STI</button>
-          <button type="button" class="sector-btn" data-sector="WOOLWICH" title="London City Airport, King George V & Sub-Aqueous Woolwich Arsenal Bore (Key 6)">6:WOO</button>
-        </div>
+        <select id="sector-select" class="shift-preset-select" aria-label="Map sector">
+          <option value="FULL">0 · All sectors</option>
+          <option value="CORE" selected>1 · Poplar Delta</option>
+          <option value="WEST">2 · Western approaches</option>
+          <option value="SOUTH">3 · Lewisham</option>
+          <option value="EAST">4 · Beckton</option>
+          <option value="NORTH">5 · Stratford</option>
+          <option value="WOOLWICH">6 · Woolwich</option>
+        </select>
 
         <!-- Modal Dialog Triggers & Overlays -->
         <div class="utility-cluster">
@@ -214,7 +213,7 @@
           <!-- Top-Left NX / Signalling Status Banner -->
           <div id="nx-status-banner" class="nx-status-banner">
             <span class="status-dot green"></span>
-            <span id="nx-status-text">MON 05:25 COLD START · Hover or click any [i], Station, Depot Road, or Signal</span>
+            <span id="nx-status-text">Automatic route setting</span>
             <button type="button" class="info-chip" style="pointer-events:auto;" interestfor="tip-nx" popovertarget="tip-nx" popovertargetaction="show" aria-label="About ARS and NX Signalling">i</button>
             <div id="tip-nx" popover="hint" class="terse-tip">
               <strong>ARS vs NX &amp; SOP RULES</strong> · ARS sets routes automatically. Click any Entry signal then Exit signal (including Depot Roads BDP_R1–R4 &amp; PDP_S1–S3) to lock a white NX route. SOP-UG1 allows 1 train per deep bore; SOP-TWG locks 3-car trains out of Tower Gateway; SOP-WIQ routes Bank-bound trains around West India Quay.
@@ -223,6 +222,7 @@
 
           <!-- Top-Right On-Canvas Station Quick-Jump & Zoom Toolbar -->
           <div id="canvas-nav-toolbar" class="canvas-nav-toolbar" role="toolbar" aria-label="Schematic Station Finder & Zoom Controls">
+            <button type="button" class="nav-chip-btn" id="map-labels" aria-pressed="false" title="Show detailed engineering and station labels">Labels</button>
             <select id="canvas-station-jump-select" class="canvas-jump-select" aria-label="Jump to any Station or Depot">
               <option value="">📍 Jump to Station / Depot…</option>
             </select>
@@ -234,7 +234,7 @@
 
           <!-- Bottom-Left Legend & Context-Sensitive Keyboard Shortcuts Bar -->
           <div class="bottom-hud-stack">
-            <div id="dynamic-hotkey-bar" class="dynamic-hotkey-bar" aria-live="polite">
+            <details class="map-key"><summary>Map key &amp; shortcuts</summary><div id="dynamic-hotkey-bar" class="dynamic-hotkey-bar" aria-live="polite">
               <span class="hk-badge"><kbd>SPACE</kbd> Pause/Resume</span>
               <span class="hk-badge"><kbd>0</kbd>–<kbd>6</kbd> Jump Sector</span>
               <span class="hk-badge"><kbd>B</kbd> Toggle CBTC</span>
@@ -253,6 +253,7 @@
                 <strong>TRACK COLOURS &amp; BERTHS</strong> · Red = Occupied block. Green glow = CBTC braking zone. White = Locked NX route. Cyan dashed curve at WIQ = Westbound CAW→WFE Bypass (no WIQ stop). Purple/Cyan boxes = Multi-road Depot Stabling &amp; Turnback Pockets.
               </div>
             </div>
+            </details>
           </div>
 
           <!-- FLOATING ACTION INSET: "NEXT BLOCKING EVENT TO ADDRESS" & CONTINGENCY PLANS -->
@@ -283,16 +284,16 @@
             <div id="active-incidents-container" class="incidents-scroll"></div>
 
             <!-- One-Click DLR Disruption Contingency Plans -->
-            <div class="contingency-section">
+            <details class="contingency-section"><summary id="contingency-summary">Contingency plans (F1–F4)</summary>
               <div class="section-header-bar">
-                <span>1-CLICK CONTINGENCY PLANS (ARS OVERRIDE)</span>
+                <span>Automatic route overrides</span>
                 <button type="button" class="info-chip" interestfor="tip-cp" popovertarget="tip-cp" popovertargetaction="show" aria-label="About Contingency Plans">i</button>
                 <div id="tip-cp" popover="hint" class="terse-tip">
                   <strong>CONTINGENCY PLANS (F1–F4)</strong> · 1-click rules that automatically short-turn or divert entire branches around a blocked tunnel or broken train.
                 </div>
               </div>
               <div id="contingency-plans-list" class="contingency-grid"></div>
-            </div>
+            </details>
           </aside>
         </div>
 
@@ -346,7 +347,7 @@
             </div>
             <div id="inspector-fleet-camera" hidden></div>
             <div id="train-inspector-body" class="train-inspector-body">
-              <p class="muted-hint">Click any moving or dwelling train berth on the schematic to inspect passenger load, dispatch a PSA for 18 mph manual recovery, or divert to an alternate terminus.</p>
+              <p class="muted-hint">Select a train on the map.</p>
             </div>
           </section>
 

@@ -1,3 +1,5 @@
+import { nextCctv, type FixedCamera } from './fleetCctv';
+import { FleetFrameBudget } from './fleetFrameBudget';
 import { STATION_MAP } from './dlrData';
 import { lineColour } from './fleetPlatform';
 import { getPassingUnits } from './fleetTraffic';
@@ -48,7 +50,7 @@ function mountCamera(root: HTMLElement, getFeed: () => Feed | undefined, wall: b
     </div>
     <div class="fleet-connections" hidden></div>
     <div class="fleet-controls">
-      ${wall ? '<label>Feed <select class="fleet-source"><option value="follow">Follow selection</option><option value="pin">Pin current unit</option><option value="tour">Fleet tour</option><option value="director">Incident director</option><option value="airport">LCY runway camera</option></select></label>' : ''}
+      ${wall ? '<label>Feed <select class="fleet-source"><option value="follow">Follow selection</option><option value="pin">Pin current unit</option><option value="tour">Fleet tour</option><option value="cctv">CCTV patrol</option><option value="director">Incident director</option><option value="airport">LCY runway camera</option></select></label>' : ''}
       <label>Camera <select class="fleet-shot"><option value="auto">Alternating</option><option value="trackside">Trackside</option><option value="front">Front window</option></select></label>
       <button type="button" class="fleet-info" aria-pressed="true">Readout</button>
       <button type="button" class="fleet-expand">${wall ? 'Full screen' : 'Pop out ↗'}</button>
@@ -79,10 +81,13 @@ function mountCamera(root: HTMLElement, getFeed: () => Feed | undefined, wall: b
     expand.onclick = () => document.getElementById('open-fleet-camera')?.click();
   }
 
+  const budget = new FleetFrameBudget();
   let current: Train | undefined;
   let pinned: Train | undefined;
   let dwellUntil = 0;
   let shotStart = 0;
+  let visit = -1;
+  let fixed: FixedCamera | undefined;
   let oldFrame = '';
   let movingScenery = false;
   let lastSceneryTime = -1;
@@ -91,6 +96,8 @@ function mountCamera(root: HTMLElement, getFeed: () => Feed | undefined, wall: b
   if (source) source.onchange = () => {
     if (source.value === 'pin') pinned = current;
     dwellUntil = 0;
+    visit = -1;
+    fixed = undefined;
   };
 
   function refresh(now: number) {
@@ -108,32 +115,48 @@ function mountCamera(root: HTMLElement, getFeed: () => Feed | undefined, wall: b
       }
     }
     const runway = source?.value === 'airport';
-    if (runway) subject = undefined;
-    shotSelect.disabled = runway;
+    const patrol = source?.value === 'cctv';
+    const siteFeed = runway || patrol;
+    if (siteFeed) subject = undefined;
+    if (shotSelect.disabled !== siteFeed) shotSelect.disabled = siteFeed;
     if (subject && !fleet.includes(subject)) subject = undefined;
     if (subject !== current) {
       current = subject;
       shotStart = now;
       oldFrame = '';
     }
-    if (pinOption) pinOption.disabled = !current && source?.value !== 'pin';
-    root.hidden = !wall && !current;
-    const ready = Boolean((current || runway) && sim && ctx);
-    canvas.hidden = !ready;
-    empty.hidden = ready;
+    const noPin = !current && source?.value !== 'pin';
+    if (pinOption && pinOption.disabled !== noPin) pinOption.disabled = noPin;
+    const hideInspector = !wall && !current;
+    if (root.hidden !== hideInspector) root.hidden = hideInspector;
+    const ready = Boolean((current || siteFeed) && sim && ctx);
+    if (canvas.hidden === ready) canvas.hidden = !ready;
+    if (empty.hidden !== ready) empty.hidden = ready;
     if (!ready) connections.hidden = true;
     osd.style.visibility = ready ? '' : 'hidden';
-    if (runway && sim && ctx) {
+    if (siteFeed && sim && ctx) {
+      if (patrol && (!fixed || now >= dwellUntil)) {
+        const next = nextCctv(sim,visit+1);
+        fixed = next.camera;
+        visit = next.visit;
+        dwellUntil = now+12000;
+      }
       connections.hidden = true;
-      headcode.textContent = 'LCY';
-      location.textContent = 'Runway camera';
-      speed.textContent = sim.formatSimTime();
-      if (!document.hidden && (oldFrame !== 'runway' || sim.simTimeSeconds !== lastSceneryTime)) {
-        drawFleetScene(ctx, sim, undefined, 'airport', []);
-        oldFrame = 'runway';
+      const label = fixed?.name ?? 'Runway camera';
+      const ident = patrol ? 'CCTV' : 'LCY';
+      if (headcode.textContent !== ident) headcode.textContent = ident;
+      if (location.textContent !== label) location.textContent = label;
+      const stamp = sim.formatSimTime();
+      if (speed.textContent !== stamp) speed.textContent = stamp;
+      if (oldFrame !== label || sim.simTimeSeconds !== lastSceneryTime) {
+        const start = performance.now();
+        if (fixed?.edge) drawFleetScene(ctx,sim,undefined,'trackside',[],fixed);
+        else drawFleetScene(ctx,sim,undefined,'airport',[]);
+        budget.record(start);
+        oldFrame = label;
         lastSceneryTime = sim.simTimeSeconds;
       }
-      return;
+      return sim.timeScale > 0;
     }
     if (!sim || !current || !ctx) {
       const message = !ctx ? 'Camera display unavailable.' : !sim ? 'Signal lost · Open Fleet Camera from the main simulator.'
@@ -153,7 +176,8 @@ function mountCamera(root: HTMLElement, getFeed: () => Feed | undefined, wall: b
     const length = Math.max(120, sim.edgeMap[current.currentEdgeId ?? '']?.lengthMeters ?? 120);
     const platform = near?.type === 'platform' && length * (near === here ? current.edgeProgress : 1-current.edgeProgress) < 95
       ? STATION_MAP[near.stationId ?? ''] : undefined;
-    connections.hidden = osd.hidden || !platform?.interchange?.length;
+    const hideConnections = osd.hidden || !platform?.interchange?.length;
+    if (connections.hidden !== hideConnections) connections.hidden = hideConnections;
     if (platform?.id !== displayedStop) {
       displayedStop = platform?.id;
       connections.replaceChildren();
@@ -174,20 +198,35 @@ function mountCamera(root: HTMLElement, getFeed: () => Feed | undefined, wall: b
     const queues = [here, next].map(n => n?.stationId ? [sim.platformWaiting(n.stationId+'_UP'), sim.platformWaiting(n.stationId+'_DN')].join('/') : '');
     const frame = [queues, traffic, current.headcode, shot, current.currentNodeId, current.currentEdgeId, current.previousEdgeId, current.nodePath[2], current.edgeProgress, Math.floor(sim.simTimeSeconds/60)].join('|');
     if (frame !== oldFrame || (movingScenery && sim.simTimeSeconds !== lastSceneryTime)) {
+      const start = performance.now();
       movingScenery = drawFleetScene(ctx, sim, current, shot, passing);
       lastSceneryTime = sim.simTimeSeconds;
+      budget.record(start);
       oldFrame = frame;
     }
     if (headcode.textContent !== current.headcode) headcode.textContent = current.headcode;
     if (location.textContent !== name) location.textContent = name;
     const mph = Math.round(current.speedMph) + ' mph';
     if (speed.textContent !== mph) speed.textContent = mph;
+    return sim.timeScale > 0 && (movingScenery || current.speedMph > 0 || passing.length > 0);
   }
-  // Polling also handles disappeared pins and a closed or reloaded main window.
-  refresh(performance.now());
-  const timer = window.setInterval(() => { if (!document.hidden) refresh(performance.now()); }, 67);
-  window.addEventListener('pagehide', (e) => { if (!e.persisted) clearInterval(timer); });
-  return () => refresh(performance.now());
+  // In standby, still notice selection and opener changes. A visible moving
+  // feed schedules from frame start so drawing time doesn't add to the period.
+  let timer = 0;
+  function update() {
+    window.clearTimeout(timer);
+    if (document.hidden) return;
+    const start = performance.now();
+    const active = refresh(start);
+    timer = window.setTimeout(update, active ? Math.max(1, budget.intervalMs - (performance.now()-start)) : 180);
+  }
+  shotSelect.addEventListener('change', update);
+  source?.addEventListener('change', update);
+  document.addEventListener('visibilitychange', update);
+  window.addEventListener('pagehide', () => clearTimeout(timer));
+  window.addEventListener('pageshow', update);
+  update();
+  return update;
 }
 
 export function mountInspectorCamera(feed: Feed, feedback: HTMLElement) {

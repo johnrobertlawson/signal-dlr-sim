@@ -97,8 +97,8 @@ export function mountSecondMonitorDesk(
             <span class="roundel-bar">DLR</span>
           </div>
           <div class="brand-titles">
-            <h1>2ND MONITOR OVERWATCH WALL &amp; DEEP TELEMETRY DESK</h1>
-            <p class="subtitle" id="desk-sync-subtitle">DUAL-SCREEN HERO OVERWATCH (NETWORK HEALTH + PIANO ROLL) + 4-DECK TELEMETRY</p>
+            <h1>Network control desk</h1>
+            <p class="subtitle" id="desk-sync-subtitle"></p>
           </div>
         </div>
 
@@ -158,14 +158,13 @@ export function mountSecondMonitorDesk(
         <article class="desk-hero-panel health-map-panel">
           <div class="hero-panel-header">
             <div>
-              <span class="eyebrow">SECOND-SCREEN PANEL A · WHOLE-NETWORK HEALTH SCHEMATIC OVERWATCH</span>
-              <h3>All 7 Branches &amp; 45 Stations Colour-Coded by Live Operational Health</h3>
+              <h3>Network health</h3>
             </div>
             <div class="health-legend-pills" role="list" aria-label="Network Health Legend">
-              <span class="health-pill optimal" role="listitem">✓ OPTIMAL</span>
-              <span class="health-pill elevated" role="listitem">▲ ELEVATED / PSA</span>
-              <span class="health-pill delayed" role="listitem">⚠ DELAYED / HELD</span>
-              <span class="health-pill critical" role="listitem">⛔ BLOCKED / FAULT</span>
+              <span class="health-pill optimal" role="listitem" tabindex="0" aria-label="Optimal" data-tip="Optimal">✓</span>
+              <span class="health-pill elevated" role="listitem" tabindex="0" aria-label="Elevated or PSA" data-tip="Elevated or PSA">▲</span>
+              <span class="health-pill delayed" role="listitem" tabindex="0" aria-label="Delayed or held" data-tip="Delayed or held">⚠</span>
+              <span class="health-pill critical" role="listitem" tabindex="0" aria-label="Blocked or fault" data-tip="Blocked or fault">⛔</span>
             </div>
           </div>
 
@@ -175,7 +174,7 @@ export function mountSecondMonitorDesk(
           <!-- Full-Network Zoomed-Out Health Canvas -->
           <div class="hero-canvas-stage" id="health-map-stage">
             <canvas id="desk-health-map-canvas" aria-label="Zoomed-out DLR Network Schematic Colour-Coded by Health"></canvas>
-            <div id="desk-health-hover-hud" class="hero-canvas-hud">
+            <div id="desk-health-hover-hud" class="hero-canvas-hud" hidden>
               Click any station or train on the Health Map to inspect &amp; pan Monitor 1
             </div>
           </div>
@@ -185,8 +184,7 @@ export function mountSecondMonitorDesk(
         <article class="desk-hero-panel piano-roll-panel">
           <div class="hero-panel-header">
             <div>
-              <span class="eyebrow">SECOND-SCREEN PANEL B · LIVE SCROLLING PIANO-ROLL SEQUENCER</span>
-              <h3>Upcoming Stock Movements, Bore Dives, SDO Stops, Turnbacks &amp; Events</h3>
+              <h3>Movement timeline</h3>
             </div>
             <div class="piano-roll-controls">
               <label class="sr-only" for="piano-filter-select">Filter Piano Roll Lanes</label>
@@ -205,7 +203,7 @@ export function mountSecondMonitorDesk(
           </div>
 
           <!-- Piano Roll Note Type Legend Bar -->
-          <div class="piano-note-legend">
+          <details class="desk-key"><summary>Timeline key</summary><div class="piano-note-legend">
             <span class="p-note-chip stn">▬ Station Call</span>
             <span class="p-note-chip bore">≈ Sub-Aqueous Bore / WIQ Bypass</span>
             <span class="p-note-chip sdo">▲ 60m SDO (+6s)</span>
@@ -214,10 +212,11 @@ export function mountSecondMonitorDesk(
             <span class="p-note-chip evt">◆ Timetable Wave / Event</span>
           </div>
 
+          </details>
           <!-- Scrolling Piano-Roll Canvas -->
           <div class="hero-canvas-stage" id="piano-roll-stage">
             <canvas id="desk-piano-roll-canvas" aria-label="Scrolling Piano-Roll Timeline of Upcoming DLR Train Movements and Events"></canvas>
-            <div id="desk-piano-hover-hud" class="hero-canvas-hud">
+            <div id="desk-piano-hover-hud" class="hero-canvas-hud" hidden>
               Scroll wheel to pan unit lanes · Click any train lane or note bar to focus on Monitor 1
             </div>
           </div>
@@ -232,8 +231,7 @@ export function mountSecondMonitorDesk(
         <section class="desk-card desk-q-fleet" aria-labelledby="fleet-table-caption">
           <div class="card-header">
             <div>
-              <span class="eyebrow">SELTRAC MOVING-BLOCK &amp; VOBC LIVE FLEET MATRIX</span>
-              <h3>Active DLR Train Units, Block Occupancy &amp; Headway Telemetry</h3>
+              <h3>Fleet</h3>
             </div>
             <span id="desk-fleet-summary-badge" class="station-meta-badge">12 UNITS ACTIVE</span>
           </div>
@@ -263,7 +261,6 @@ export function mountSecondMonitorDesk(
         <section class="desk-card desk-q-station">
           <div class="card-header">
             <div>
-              <span class="eyebrow">LIVE STATION INSPECTOR · SOLARI BOARD &amp; MICRO-INTERLOCKING</span>
               <h3 id="desk-station-title">CAW · Canary Wharf</h3>
             </div>
             <div style="display:flex; align-items:center; gap:0.4rem;">
@@ -282,8 +279,7 @@ export function mountSecondMonitorDesk(
         <section class="desk-card desk-q-ops">
           <div class="card-header">
             <div>
-              <span class="eyebrow">ACTIVE BOTTLENECKS, CONTINGENCY PLANS &amp; TIMETABLE MATRIX</span>
-              <h3>Disruption Recovery, ARS Overrides &amp; Headway Editor</h3>
+              <h3>Service control</h3>
             </div>
             <span id="desk-incidents-badge" class="station-meta-badge">LIVE OPS</span>
           </div>
@@ -312,8 +308,7 @@ export function mountSecondMonitorDesk(
         <section class="desk-card desk-q-analytics">
           <div class="card-header">
             <div>
-              <span class="eyebrow">NETWORK ANALYTICS, SOP RULES &amp; IECC EVENT TELEMETRY</span>
-              <h3>Station Footfall Leaders, Rare Working Log &amp; SOP Interlocking Rules</h3>
+              <h3>Traffic &amp; event log</h3>
             </div>
             <span class="station-meta-badge">SOP-UG1 · TWG · WIQ</span>
           </div>
@@ -323,13 +318,13 @@ export function mountSecondMonitorDesk(
               <h4 class="desk-subhead">Busiest vs. Quietest Stations &amp; Rare Routes</h4>
               <div id="desk-footfall-boards" class="desk-footfall-stack"></div>
 
-              <h4 class="desk-subhead" style="margin-top:0.55rem;">DLR Interlocking SOP Quick-Reference</h4>
+              <details class="desk-key"><summary>Interlocking rules</summary>
               <div class="sop-ref-grid">
                 <div class="sop-chip"><strong>SOP-UG1 (Deep Bores)</strong><span>Max 1 train per tunnel bore in Bank 1:20 dive, Greenwich bore &amp; 50mph Woolwich bore.</span></div>
                 <div class="sop-chip"><strong>SOP-UG2 (Bank Headshunt)</strong><span>Bank arrivals reverse via single-bore tail headshunt (BNK_HSH); Plan B splits 2C→TWG / 3C→SHA.</span></div>
                 <div class="sop-chip"><strong>SOP-TWG (2-Car 60m Max)</strong><span>Tower Gateway &amp; Minories throat physically lock out 3-car (90m) trains and divert them to Shadwell.</span></div>
                 <div class="sop-chip"><strong>SOP-WIQ (CAW→WFE Bypass)</strong><span>Northbound Canary Wharf→Bank trains use the platformless west bypass (DLT_BYP_UP) and skip WIQ.</span></div>
-              </div>
+              </div></details>
             </div>
 
             <div class="desk-ops-col">
@@ -753,7 +748,7 @@ export function mountSecondMonitorDesk(
       healthCtx.stroke();
 
       // Station 3-letter code pill for key stations or degraded stations
-      if (isMajor || info.tier !== 'OPTIMAL' || scale > 0.23) {
+      if (st.id === selectedStId || info.tier !== 'OPTIMAL') {
         const lbl = info.tier !== 'OPTIMAL' ? `${info.symbol}${st.code}` : st.code;
         healthCtx.font = isMajor || info.tier !== 'OPTIMAL' ? '700 8.5px monospace' : '600 7.5px monospace';
         const tw = healthCtx.measureText(lbl).width + 5;
@@ -815,8 +810,7 @@ export function mountSecondMonitorDesk(
       { key: 'WOO', label: '7:WOOLWICH', filter: (s) => s.branch === 'Woolwich' },
     ];
 
-    branchHealthStrip.innerHTML = branches
-      .map((br) => {
+    branches.forEach((br,index) => {
         const sts = b.sim.stations.filter(br.filter);
         const avgScore =
           sts.length > 0
@@ -833,14 +827,24 @@ export function mountSecondMonitorDesk(
             ? 'ELEVATED'
             : 'OPTIMAL';
         const pal = HEALTH_PALETTE[tier];
-        return `
-          <div class="branch-health-chip" style="border-left-color:${pal.color}; background:${pal.bg};">
-            <span class="bh-name">${br.label}</span>
-            <strong class="bh-score" style="color:${pal.color};">${pal.symbol} ${effectiveScore}%</strong>
-          </div>
-        `;
-      })
-      .join('');
+        let chip = branchHealthStrip.children[index] as HTMLElement | undefined;
+        if (!chip) {
+          chip = document.createElement('span');
+          chip.className = 'branch-health-chip';
+          chip.tabIndex = 0;
+          chip.innerHTML = `<span class="bh-name">${br.key}</span><strong class="bh-score"></strong>`;
+          branchHealthStrip.append(chip);
+        }
+        const description = `${br.label.split(':')[1]} · ${tier} · ${effectiveScore}%`;
+        if (chip.dataset.tip === description) return;
+        chip.dataset.tip = description;
+        chip.setAttribute('aria-label',description);
+        chip.style.borderLeftColor = pal.color;
+        chip.style.background = pal.bg;
+        const score = chip.lastElementChild as HTMLElement;
+        score.style.color = pal.color;
+        score.textContent = pal.symbol;
+    });
   }
 
   // Click & Hover interactions on the Whole-Network Health Map Canvas
@@ -854,6 +858,7 @@ export function mountSecondMonitorDesk(
       healthMapCanvas.style.cursor = 'pointer';
       const tr = hitTrain.tr;
       const destName = STATION_MAP[tr.destCode]?.name || tr.destCode;
+      healthHoverHud.hidden = false;
       healthHoverHud.innerHTML = `<strong>🚆 UNIT ${tr.headcode} → ${destName}</strong> · ${tr.cars}-Car · ${Math.round(
         tr.speedMph
       )} mph · ${tr.delaySeconds > 15 ? `+${Math.round(tr.delaySeconds)}s late` : 'On Time'} · <em>Click to focus on Monitor 1</em>`;
@@ -863,13 +868,16 @@ export function mountSecondMonitorDesk(
     const hitSt = healthStationHitBoxes.find((h) => Math.hypot(mx - h.sx, my - h.sy) < h.r);
     if (hitSt) {
       healthMapCanvas.style.cursor = 'pointer';
+      healthHoverHud.hidden = false;
       healthHoverHud.innerHTML = `<strong style="color:${hitSt.info.color}">${hitSt.info.symbol} ${hitSt.st.code} · ${hitSt.st.name}</strong> · Health: <strong>${hitSt.info.score}% (${hitSt.info.tier})</strong> — ${hitSt.info.reason} · <em>Click to inspect &amp; pan Monitor 1</em>`;
       return;
     }
 
+    healthHoverHud.hidden = true;
     healthMapCanvas.style.cursor = 'default';
   });
 
+  healthMapCanvas.onmouseleave = () => { healthHoverHud.hidden = true; };
   healthMapCanvas.addEventListener('click', (e) => {
     const rect = healthMapCanvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
@@ -1334,13 +1342,16 @@ export function mountSecondMonitorDesk(
       if (tr) {
         const destName = STATION_MAP[tr.destCode]?.name || tr.destCode;
         const nextStops = tr.routeQueue.slice(0, 5).join(' → ') || 'Terminus Turnback';
+        pianoHoverHud.hidden = false;
         pianoHoverHud.innerHTML = `<strong>🎹 LANE ${tr.headcode} (${tr.cars}-Car → ${destName})</strong> · Upcoming Sequence: <strong>${nextStops}</strong> · <em>Click lane to focus on Monitor 1</em>`;
       }
     } else {
+      pianoHoverHud.hidden = true;
       pianoRollCanvas.style.cursor = 'default';
     }
   });
 
+  pianoRollCanvas.onmouseleave = () => { pianoHoverHud.hidden = true; };
   pianoRollCanvas.addEventListener('click', (e) => {
     const rect = pianoRollCanvas.getBoundingClientRect();
     const my = e.clientY - rect.top;
@@ -1598,7 +1609,7 @@ export function mountSecondMonitorDesk(
       : '🛋️ AUTO-PILOT: OFF';
     syncSubtitle.textContent = b.observe.active && b.observe.currentCallout
       ? `AUTO-PILOT [${b.observe.getAutopilotRegime()}] · ${b.observe.currentCallout.title} (${b.observe.getRemainingSeconds().toFixed(0)}s)`
-      : 'DUAL-SCREEN HERO OVERWATCH (NETWORK HEALTH + PIANO ROLL) + 4-DECK TELEMETRY';
+      : '';
 
     renderBranchHealthRibbon();
 

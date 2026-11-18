@@ -1,5 +1,9 @@
 import type { DLRSimulation } from './simulation';
 import type { Train } from './types';
+import { cameraAlignment, cameraTrains, type FixedCamera } from './fleetCctv';
+import { drawEntrance } from './fleetEntrances';
+import { crossingOn } from './fleetCrossing';
+import { shedCentre } from './fleetDepot';
 import { fleetAlignment } from './fleetAlignment';
 import { landscape, drawLandscape, type LampColour } from './fleetLandscape';
 import { passengerSprite, lineColour } from './fleetPlatform';
@@ -37,8 +41,9 @@ function fogColour(base: string, mist: string, depth: number) {
 
 // The camera uses metres along the active track. The low-resolution framebuffer
 // and flat-shaded faces keep several open displays inexpensive.
-export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation, subject: Train | undefined, shot: CameraShot, passing: PassingUnit[]) {
-  const unit = subject ?? airportView;
+export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation, subject: Train | undefined, shot: CameraShot, passing: PassingUnit[], fixed?: FixedCamera) {
+  const mountEdge = fixed ? sim.edgeMap[fixed.edge] : undefined;
+  const unit = fixed && mountEdge ? cameraAlignment(mountEdge,fixed.fraction) : subject ?? airportView;
   const here = sim.nodeMap[unit.currentNodeId];
   const next = unit.nextNodeId ? sim.nodeMap[unit.nextNodeId] : undefined;
   const edge = unit.currentEdgeId ? sim.edgeMap[unit.currentEdgeId] : undefined;
@@ -60,18 +65,23 @@ export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation
   // A changing fog colour would otherwise grow this lookup table every minute.
   if (fogPalette.size > 4096) fogPalette.clear();
   // Successive fixed trackside positions give each unit room to approach and pass.
-  const cameraX = shot === 'airport' ? 11 : cab ? 0 : -14;
-  const cameraY = shot === 'airport' ? 13 : cab ? 2.5 : 3.4;
-  const cameraZ = shot === 'airport' ? -55 : cab ? travel : Math.floor((travel + 14) / 72) * 72 + 6;
-  const yaw = shot === 'airport' ? 0.23 : cab ? 0 : Math.atan2(-cameraX, travel - 13 - cameraZ);
-
-  const lens = cab ? 192 : 166;
-  // For each train use the same local model, mirrored into the other road when approaching.
-  let modelX = 0, modelZ = 0, modelDirection = 1;
+  const cameraZ = fixed ? travel+fixed.offset : shot === 'airport' ? -55 : cab ? travel : Math.floor((travel + 14) / 72) * 72 + 6;
   const route = fleetAlignment(sim, unit);
   let path = route.main;
   const eye = path.at(cameraZ);
-  const horizon = Math.round((cab ? 91 : 90) + (cab ? lens*(path.at(cameraZ+10).elevation-eye.elevation)/10 : 0));
+  const atPlatform = (here.type === 'platform' && cameraZ < 85) || (next?.type === 'platform' && length-cameraZ < 85);
+  const streetShot = !fixed && shot === 'trackside' && !tunnel && !depot && !atPlatform && eye.elevation >= 4.5;
+  const cameraX = fixed ? fixed.x : shot === 'airport' ? 11 : cab ? 0 : streetShot ? -21 : -14;
+  const cameraY = fixed ? fixed.height-(fixed.street ? eye.elevation : 0) : shot === 'airport' ? 13 : cab ? 2.5 : streetShot ? 2.4-eye.elevation : 3.4;
+  const yaw = fixed ? fixed.yaw : shot === 'airport' ? 0.23 : cab ? 0 : Math.atan2(-cameraX, travel - 13 - cameraZ);
+  const lens = cab ? 192 : 166;
+  // A nearly level cab horizon shows the grade ahead. A street camera pans
+  // upward to keep an elevated train in shot and its piers in the foreground.
+  const aim = path.at(travel-13).elevation + 1.7 - (eye.elevation + cameraY);
+  const pitch = fixed ? fixed.pitch : cab ? 0.35*(path.at(cameraZ+10).elevation-eye.elevation)/10
+    : streetShot ? aim/Math.hypot(cameraX, travel-13-cameraZ) : 0;
+  const horizon = Math.round(90 + lens*pitch);
+  let modelX = 0, modelZ = 0, modelDirection = 1;
   let atStreetLevel = false, sceneryDirection = 1;
   let sun: { x: number; y: number; visible: boolean } | undefined;
   const eyeX = eye.x - eye.dy * cameraX, eyeY = eye.y + eye.dx * cameraX;
@@ -98,17 +108,23 @@ export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation
       a = b;
     }
     if (visible.length < 3) return;
-    const projected = visible.map(([x,y,z]) => [Math.round(width/2+lens*x/z), Math.round(horizon-lens*y/z)]);
-    if (projected.every(p=>p[0]<0) || projected.every(p=>p[0]>width) ||
-        projected.every(p=>p[1]<0) || projected.every(p=>p[1]>height)) return;
+    let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity, nearest = Infinity;
+    for (const p of visible) {
+      nearest = Math.min(nearest,p[2]);
+      p[0] = Math.round(width/2+lens*p[0]/p[2]);
+      p[1] = Math.round(horizon-lens*p[1]/p[2]);
+      left = Math.min(left,p[0]); right = Math.max(right,p[0]);
+      top = Math.min(top,p[1]); bottom = Math.max(bottom,p[1]);
+    }
+    if (right < 0 || left > width || bottom < 0 || top > height) return;
     const lit = tunnel || colour === '#fff2bf' || colour === '#fb5346' || colour === '#f5d99a' || colour === '#e0d8a8'
       ? colour : light.surface(colour);
     const shade = colour === '#edd3a0' && (tunnel || light.lamps > 0.2) ? '#edd3a0' : lit;
-    ctx.fillStyle = fogColour(shade, mist, Math.min(...visible.map(p => p[2])));
+    ctx.fillStyle = fogColour(shade, mist, nearest);
     ctx.beginPath();
-    for (const [x,y] of projected) ctx.lineTo(x,y);
+    for (const [x,y] of visible) ctx.lineTo(x,y);
     ctx.closePath();
-    if (sun?.visible && ctx.isPointInPath(sun.x,sun.y)) sun.visible = false;
+    if (sun?.visible && sun.x >= left && sun.x <= right && sun.y >= top && sun.y <= bottom && ctx.isPointInPath(sun.x,sun.y)) sun.visible = false;
     ctx.fill();
   }
   function ground(colour: string, x1: number, x2: number, y: number, z1: number, z2: number) {
@@ -184,7 +200,7 @@ export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation
   ctx.fillStyle = tunnel ? '#252935' : sky;
   ctx.fillRect(0, 0, width, height);
   const from = here.stationId ?? here.id.split('_')[0], to = next?.stationId ?? next?.id.split('_')[0] ?? from;
-  const reverse = from > to;
+  const reverse = from === to ? here.id > (next?.id ?? here.id) : from > to;
   const section = (reverse ? [to,from] : [from,to]).join('-');
   const seed = [...section].reduce((n, c) => n + c.charCodeAt(0), 0);
   if (!tunnel) {
@@ -253,6 +269,16 @@ export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation
   }
   ctx.fillStyle = tunnel ? '#34373d' : light.surface(terrain === 'park' ? '#65805d' : '#647067');
   ctx.fillRect(0, horizon, width, height-horizon);
+  function entrances() {
+    atStreetLevel = true;
+    const brush = {face,ground,side,lamp,lightPool,railLevel:(z: number)=>path.at(z).elevation,sign:nameboard};
+    for (const [node,z] of [[here,0],[next,length]] as const) {
+      if (node?.type === 'platform' && node.stationId && Math.abs(cameraZ-z)<185) {
+        drawEntrance(node.stationId,z,cameraX,brush);
+      }
+    }
+    atStreetLevel = false;
+  }
   const start = cameraZ - 160, end = cameraZ + 220;
   let movingScenery = false;
   if (!tunnel) {
@@ -262,16 +288,40 @@ export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation
     modelDirection = sceneryDirection = reverse ? -1 : 1;
     modelZ = reverse ? length : 0;
     const railLevel = (z: number) => path.at(modelZ + modelDirection*z).elevation;
-    movingScenery = drawLandscape(terrain,reverse ? length-cameraZ : cameraZ,seed,section,length,sim.simTimeSeconds,{face,ground,side,lamp,lightPool,railLevel});
+    const sceneryZ = reverse ? length-cameraZ : cameraZ;
+    const brush = {face,ground,side,lamp,lightPool,railLevel};
+    const shed = depot ? shedCentre(here.id, next?.id, length, reverse) : undefined;
+    movingScenery = drawLandscape(terrain,sceneryZ,seed,section,length,sim.simTimeSeconds,brush,shed,crossingOn(edge));
     if (terrain === 'airfield') {
-      drawAirportTraffic(sim.airport, sim.simTimeSeconds, section, length, {face,ground,side,lamp,lightPool,railLevel});
+      drawAirportTraffic(sim.airport, sim.simTimeSeconds, section, length, brush);
       movingScenery = true;
     }
     atStreetLevel = false;
     modelZ = 0;
     modelDirection = sceneryDirection = 1;
+    if (cameraX < 10) entrances();
+    if (edge?.isTunnel && (here.stationId==='GRE' || next?.stationId==='GRE')) {
+      const at = here.stationId==='GRE' ? 22 : length-22;
+      // Retaining headwall, concrete arch ring and the unlit bore beyond.
+      face('#8b8076',[-7,-0.4,at],[8,-0.4,at],[8,6.6,at],[-7,6.6,at]);
+      for (const [r,colour] of [[3.25,'#bcb5a2'],[2.78,'#222b33']] as const) {
+        const arch: Point[] = [[-r,-0.3,at],[r,-0.3,at]];
+        for (let i=0;i<=8;i++) arch.push([r*Math.cos(i*Math.PI/8),2.7+r*Math.sin(i*Math.PI/8),at]);
+        face(colour,...arch);
+      }
+      lamp('warm',[3.6,3.5,at],0.75,0.85);
+    }
     for (let z=Math.floor(start/36)*36; z<end; z+=36) {
       const level = path.at(z).elevation;
+      if (!edge?.isFlyover && level > 0.7 && level < 4.5 && !depot && terrain !== 'cutting') {
+        const farLevel = path.at(z+36).elevation;
+        for (const sign of [-1,1]) {
+          const lip = sign < 0 ? -2.6 : parallel ? 7.5 : 2.6;
+          face(sign < 0 ? '#768660' : '#819069',[lip,-0.32,z],[lip,-0.32,z+36],
+            [lip+sign*Math.max(0,farLevel)*1.4,-farLevel,z+36],[lip+sign*level*1.4,-level,z]);
+        }
+        continue;
+      }
       if (level < 3.5) continue;
       face('#93958d',[-1,-level,z],[0.8,-level,z],[1.8,-0.5,z],[-1.9,-0.5,z]);
       side('#747f80',-1,-level,-0.65,z,z+1.2);
@@ -279,6 +329,14 @@ export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation
   }
   for (const branch of route.branches) {
     path = branch.path;
+    if (path.at(branch.length/2).elevation >= 3.5) {
+      ground('#69777b',-2,2,-0.95,0,branch.length);
+      for (const x of [-2,2]) side('#909997',x,-0.95,-0.12,0,branch.length);
+      for (let z=16;z<branch.length;z+=32) {
+        const footing = -path.at(z).elevation;
+        face('#88918e',[-0.7,footing,z],[0.7,footing,z],[1.5,-0.95,z],[-1.5,-0.95,z]);
+      }
+    }
     ground('#6b695f',-1.35,1.35,-0.18,0,branch.length);
     for (let z = 0; z < branch.length; z += 1.6) ground('#514f4a',-1.1,1.1,-0.08,z,z+0.22);
     for (const x of [-0.72,0.72]) ground('#c5c2b7',x-0.05,x+0.05,0.06,0,branch.length);
@@ -298,7 +356,9 @@ export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation
   const roads = parallel ? [0, 4.8] : [0];
   const right = parallel ? 7.5 : 2.6;
   ground(tunnel ? '#44454a' : '#5f6563', -2.55, right, -0.29, start, end);
-  for (const x of roads) {
+  // From the street the concrete soffit hides the rails on top of the deck.
+  if (streetShot) ground('#677172', -2.55, right, -1.32, start, end);
+  for (const x of streetShot ? [] : roads) {
     const slab = tunnel || edge?.isFlyover;
     const bed = slab ? '#6c6e6d' : light.stone;
     ground(bed, x-1.34, x+1.34, -0.17, start, end);
@@ -395,10 +455,12 @@ export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation
     modelX = 0;
   }
   function drawTrain(train: Train, origin: number, trackX: number, direction: number) {
+    sceneryDirection = cameraX > trackX ? -1 : 1;
     modelX = trackX;
     modelZ = origin;
     modelDirection = direction;
     const localCameraZ = (cameraZ - origin) * direction;
+    const absoluteEyeHeight = eye.elevation+cameraY;
     // Detail the visible side of each articulated car and its raked cab end.
     const cars = Array.from({length: train.cars * 2}, (_, i) => -i * 15);
     cars.sort((a,b) => Math.abs(b-7.5-localCameraZ)-Math.abs(a-7.5-localCameraZ));
@@ -426,7 +488,9 @@ export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation
         side('#274251', -1.39, 1.69, 2.76, z+0.14, z+1.31);
         side('#582d39', -1.40, 0.68, 2.99, z+0.69, z+0.75);
       }
-      ground('#abb6b3', -1.34, 1.34, 3.18, tail+0.4, nose-0.55);
+      if (absoluteEyeHeight > path.at(origin+(nose-7)*direction).elevation+3.18) {
+        ground('#abb6b3', -1.34, 1.34, 3.18, tail+0.4, nose-0.55);
+      }
       const frontFacing = localCameraZ >= nose;
       if (frontFacing || localCameraZ <= tail) {
         const z = frontFacing ? nose : tail, inset = frontFacing ? -0.55 : 0.4;
@@ -454,8 +518,28 @@ export function drawFleetScene(ctx: CanvasRenderingContext2D, sim: DLRSimulation
       }
     }
   }
-  if (!cab && subject) drawTrain(subject, travel, 0, 1);
+  if (fixed && mountEdge) {
+    for (const branch of route.branches) {
+      path = branch.path;
+      for (const train of sim.trains) {
+        if (train.currentEdgeId !== branch.edge.id) continue;
+        const nose = train.edgeProgress*Math.max(120,branch.edge.lengthMeters);
+        if (nose <= branch.length+train.cars*30) drawTrain(train,nose,0,1);
+      }
+    }
+    path = route.main;
+    for (const other of cameraTrains(sim,mountEdge,cameraZ)) {
+      if (!route.branches.some(branch => branch.edge.id === other.unit.currentEdgeId)) {
+        drawTrain(other.unit,other.nose,other.x,other.direction);
+      }
+    }
+  } else if (!cab && subject) drawTrain(subject, travel, 0, 1);
   else for (const other of passing) drawTrain(other.unit, other.nose, 4.8, -1);
+  if (cameraX >= 10 && !tunnel) {
+    modelX = modelZ = 0;
+    modelDirection = sceneryDirection = 1;
+    entrances();
+  }
   if (sun?.visible) {
     // Internal lens reflections sit on the line from the sun to the optical centre.
     const dx = width/2-sun.x, dy = height/2-sun.y;

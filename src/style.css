@@ -2328,3 +2328,15 @@ input[type="checkbox"][switch]:focus-visible {
 #lcy-board td { padding: .15rem 0; }
 #lcy-board tr:nth-child(4) td { border-top: 1px solid #385156; }
 #lcy-board p, #lcy-board footer { font-size: .72rem; }
+
+.map-key, .desk-key { font: 600 0.71rem var(--font-mono); color: #b8caca; }
+.map-key { pointer-events: auto; background: #0c1720; border: 1px solid #30434c; border-radius: 5px; padding: .35rem .55rem; }
+.map-key summary, .desk-key summary { cursor: pointer; width: fit-content; }
+.map-key[open] summary, .desk-key[open] summary { margin-bottom: .4rem; }
+.health-pill { position: relative; }
+.health-pill:is(:hover,:focus)::after { content: attr(data-tip); position: absolute; right: 0; top: 100%; z-index: 2; white-space: nowrap; padding: .35rem .5rem; color: #e4eeee; background: #12212c; border: 1px solid currentColor; }
+#map-labels[aria-pressed="true"] { color: #8de1d6; border-color: #52b0ab; }
+.contingency-section > summary { cursor: pointer; padding: .35rem .55rem; color: #b8caca; font: 600 .72rem var(--font-mono); }
+.branch-health-chip { position: relative; }
+.branch-health-chip:is(:hover,:focus)::after { content: attr(data-tip); position: absolute; top: 100%; left: 0; z-index: 3; white-space: nowrap; padding: .35rem .5rem; color: #deebe8; background: #142330; font-size: .7rem; }
+.branch-health-chip:nth-last-child(-n+2)::after { left: auto; right: 0; }

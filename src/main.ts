@@ -24,6 +24,7 @@ const unitsFlap = document.getElementById('units-flap')!;
 const nxStatusText = document.getElementById('nx-status-text')!;
 
 const activeIncidentsContainer = document.getElementById('active-incidents-container')!;
+const contingencySummary = document.getElementById('contingency-summary')!;
 const contingencyPlansList = document.getElementById('contingency-plans-list')!;
 
 const selectedStationTitle = document.getElementById('selected-station-title')!;
@@ -362,6 +363,9 @@ function renderActionInset() {
   });
 
   // Render 1-Click Contingency Plans with terse "i" toggletips
+  const activePlans = sim.contingencies.filter(plan => plan.active).length;
+  contingencySummary.textContent = activePlans
+    ? `Contingency plans · ${activePlans} active` : 'Contingency plans (F1–F4)';
   contingencyPlansList.innerHTML = sim.contingencies
     .map(
       (cp) => `
@@ -475,7 +479,7 @@ function renderTrainInspector(forceRebuild = false) {
       selectedTrainState.textContent = 'STANDBY';
       trainInspectorBody.innerHTML = `
         <p class="muted-hint">
-          Click any train berth pill on the schematic to inspect live SelTrac telemetry, dispatch a PSA for 18 mph manual recovery, or divert to an alternate terminus.
+          Select a train on the map.
         </p>
       `;
       renderDynamicHotkeyBar();
@@ -956,20 +960,13 @@ document.querySelectorAll<HTMLButtonElement>('.speed-btn[data-speed]').forEach((
   });
 });
 
+const sectorSelect = document.getElementById('sector-select') as HTMLSelectElement;
 function activateSectorView(sec: SectorId) {
   schematic.jumpToSector(sec);
-  document.querySelectorAll<HTMLButtonElement>('.sector-btn[data-sector]').forEach((b) => {
-    b.classList.toggle('active', b.dataset.sector === sec);
-  });
+  sectorSelect.value = sec;
   soundEngine.playRelayClick(false);
 }
-
-document.querySelectorAll<HTMLButtonElement>('.sector-btn[data-sector]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const sec = btn.dataset.sector as SectorId;
-    activateSectorView(sec);
-  });
-});
+sectorSelect.addEventListener('change', () => activateSectorView(sectorSelect.value as SectorId));
 
 // Wire On-Canvas Navigation & Complex Switcher Toolbar
 document.querySelectorAll<HTMLButtonElement>('.nav-chip-btn[data-jump-sector]').forEach((btn) => {
@@ -1135,6 +1132,12 @@ window.addEventListener('keydown', (e) => {
 });
 
 // Toggle CBTC Moving-Block Footprints
+const labelButton = document.getElementById('map-labels')!;
+labelButton.onclick = () => {
+  schematic.detailLabels = !schematic.detailLabels;
+  labelButton.setAttribute('aria-pressed', String(schematic.detailLabels));
+};
+
 const toggleCbtcBtn = document.getElementById('toggle-cbtc-btn')!;
 toggleCbtcBtn.addEventListener('click', () => {
   sim.showCbtcOverlays = !sim.showCbtcOverlays;
@@ -1280,9 +1283,7 @@ function setMapWallMode(enabled: boolean) {
   }
   setTimeout(() => {
     schematic.handleResize();
-    const activeSecBtn = document.querySelector<HTMLButtonElement>('.sector-btn.active');
-    const sec = (activeSecBtn?.dataset.sector || 'CORE') as SectorId;
-    schematic.jumpToSector(sec);
+    schematic.jumpToSector(sectorSelect.value as SectorId);
   }, 40);
 }
 

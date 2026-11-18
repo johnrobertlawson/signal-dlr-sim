@@ -19,6 +19,7 @@ export class SchematicCanvas {
   private dragStartY: number = 0;
 
   // Interactive selections
+  public detailLabels = false;
   public hoveredStation: Station | null = null;
   public selectedStation: Station | null = null;
   public selectedTrain: Train | null = null;
@@ -304,6 +305,17 @@ export class SchematicCanvas {
           html: `<strong>🚉 ${foundSt.code} · ${foundSt.name}</strong> · Max ${foundSt.maxCars}-Car · ${turnStr}${crowd} · <span style="color:#FBBF24">${nextStr}</span> · <em>Click: Board · Dbl-Click: Fact Sheet</em>`,
         });
       } else {
+        for (const edge of this.sim.edges) {
+          if (!edge.edgeLabel) continue;
+          const points = getEdgePolyline(this.sim.nodeMap[edge.from],this.sim.nodeMap[edge.to],edge);
+          for (let i=1;i<points.length;i++) {
+            const a = points[i-1], b = points[i], dx = b.x-a.x, dy = b.y-a.y;
+            const t = Math.max(0,Math.min(1,((world.x-a.x)*dx+(world.y-a.y)*dy)/(dx*dx+dy*dy || 1)));
+            if (Math.hypot(world.x-a.x-t*dx,world.y-a.y-t*dy)*this.zoom > 5) continue;
+            this.onHoverInfo?.({x:sx,y:sy,html:`<strong>${edge.edgeLabel}</strong>`});
+            return;
+          }
+        }
         this.onHoverInfo?.(null);
       }
     });
@@ -564,6 +576,7 @@ export class SchematicCanvas {
     ctx.stroke();
     ctx.setLineDash([]);
 
+    if (!this.detailLabels) { ctx.restore(); return; }
     ctx.fillStyle = '#38BDF8';
     ctx.font = '800 12px "JetBrains Mono", monospace';
     ctx.fillText('🌊 RIVER THAMES — GREENWICH SUB-AQUEOUS BORE (SOP-UG1)', 340, 1654);
@@ -797,7 +810,7 @@ export class SchematicCanvas {
       ctx.setLineDash([]);
 
       // Pill-backed inline edge label for tunnels/bypass/chords
-      if (edge.edgeLabel) {
+      if (this.detailLabels && edge.edgeLabel) {
         const mid = this.interpolatePolyline(pts, 0.5);
         let mx = mid.x;
         let my = mid.y - 14;
@@ -926,7 +939,7 @@ export class SchematicCanvas {
 
     // 2. Draw crisp pill-backed labels for broken-out depot roads, Delta chords, bypass & headshunts
     for (const node of this.sim.nodes) {
-      if (!node.roadLabel) continue;
+      if (!this.detailLabels || !node.roadLabel) continue;
       ctx.save();
       ctx.font = '700 9px "JetBrains Mono", monospace';
       const tw = ctx.measureText(node.roadLabel).width + 12;
@@ -1006,7 +1019,11 @@ export class SchematicCanvas {
       ctx.font = isSelected || isHovered ? '700 13px "JetBrains Mono", monospace' : '600 12px "JetBrains Mono", monospace';
       ctx.fillStyle = isSelected ? '#38BDF8' : hasIncident ? '#FCA5A5' : '#E2E8F0';
       const carTag = st.maxCars === 2 ? ' [2C]' : st.id === 'WIQ' ? ' [NO BNK UP]' : '';
-      ctx.fillText(`${st.code} · ${st.name}${carTag}`, lx, ly);
+      if (this.detailLabels || isSelected || isHovered || hasIncident || crowdMult > 1.3) {
+        ctx.fillText(`${st.code} · ${st.name}${carTag}`, lx, ly);
+      } else if (st.isTerminus || this.zoom > 0.88) {
+        ctx.fillText(st.code, lx, ly);
+      }
 
       if (crowdMult > 1.3) {
         ctx.font = '700 9.5px "JetBrains Mono", monospace';

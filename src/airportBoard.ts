@@ -1,9 +1,14 @@
+import { FleetFrameBudget } from './fleetFrameBudget';
 import type { DLRSimulation } from './simulation';
 import { drawFleetScene } from './fleetScene';
 
 export function mountAirportBoard(sim: DLRSimulation) {
   const panel = document.querySelector<HTMLElement>('#lcy-board')!;
-  const ctx = panel.querySelector('canvas')!.getContext('2d', { alpha: false });
+  const canvas = panel.querySelector('canvas')!;
+  const budget = new FleetFrameBudget();
+  let inView = false;
+  new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; }).observe(canvas);
+  const ctx = canvas.getContext('2d', { alpha: false });
   const rows = panel.querySelector('tbody')!;
   const transfers = panel.querySelector('#lcy-transfer-count')!;
   const delay = panel.querySelector<HTMLButtonElement>('#lcy-delay')!;
@@ -34,8 +39,10 @@ export function mountAirportBoard(sim: DLRSimulation) {
     delay.disabled = !sim.airport.canDelay(now);
   }
   return { refresh, draw(now: number) {
-    if (panel.hidden || !ctx || now-lastFrame < 80 || sim.simTimeSeconds === lastTime) return;
+    if (panel.hidden || !inView || document.hidden || !ctx || now-lastFrame < budget.intervalMs - 0.5 || sim.simTimeSeconds === lastTime) return;
+    const start = performance.now();
     drawFleetScene(ctx, sim, undefined, 'airport', []);
+    budget.record(start);
     lastFrame = now;
     lastTime = sim.simTimeSeconds;
   } };
