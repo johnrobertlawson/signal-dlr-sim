@@ -134,6 +134,9 @@ export function mountSecondMonitorDesk(
         </div>
 
         <div class="utility-cluster">
+          <button type="button" id="desk-autopilot-btn" class="util-btn observe-toggle-btn" title="Toggle Full Auto-Pilot Sit-Back Mode across Monitor 1 & Monitor 2">
+            🛋️ AUTO-PILOT: OFF
+          </button>
           <button type="button" id="desk-toggle-hero-size-btn" class="util-btn desk-popout-btn" title="Toggle Dual-Screen Overwatch between 58% Split View and 90% Full-Screen Wall">
             ⛶ EXPAND DUAL SCREEN
           </button>
@@ -340,6 +343,8 @@ export function mountSecondMonitorDesk(
   `;
 
   const rootShell = document.getElementById('desk-root-shell')!;
+  const syncSubtitle = document.getElementById('desk-sync-subtitle')!;
+  const deskAutopilotBtn = document.getElementById('desk-autopilot-btn') as HTMLButtonElement;
   const toggleHeroSizeBtn = document.getElementById('desk-toggle-hero-size-btn')!;
   const clockFlap = document.getElementById('desk-clock-flap')!;
   const ppmFlap = document.getElementById('desk-ppm-flap')!;
@@ -447,6 +452,16 @@ export function mountSecondMonitorDesk(
       soundEngine.playRelayClick(b.sim.timeScale > 0);
       renderDeskAll(true);
     });
+  });
+
+  deskAutopilotBtn.addEventListener('click', () => {
+    const b = getBridge();
+    if (b.observe.active) {
+      b.observe.toggle(false);
+    } else {
+      b.observe.engageFullAutopilot();
+    }
+    renderDeskAll(true);
   });
 
   document.getElementById('desk-fix-all-btn')?.addEventListener('click', () => {
@@ -1580,6 +1595,14 @@ export function mountSecondMonitorDesk(
     document.querySelectorAll<HTMLButtonElement>('.desk-spd-btn').forEach((btn) => {
       btn.classList.toggle('active', parseFloat(btn.dataset.speed || '1') === b.sim.timeScale);
     });
+
+    deskAutopilotBtn.classList.toggle('active', b.observe.active);
+    deskAutopilotBtn.textContent = b.observe.active
+      ? `🛋️ AUTO-PILOT: ${b.observe.getAutopilotRegime()}`
+      : '🛋️ AUTO-PILOT: OFF';
+    syncSubtitle.textContent = b.observe.active && b.observe.currentCallout
+      ? `AUTO-PILOT [${b.observe.getAutopilotRegime()}] · ${b.observe.currentCallout.title} (${b.observe.getRemainingSeconds().toFixed(0)}s)`
+      : 'DUAL-SCREEN HERO OVERWATCH (NETWORK HEALTH + PIANO ROLL) + 4-DECK TELEMETRY';
 
     renderBranchHealthRibbon();
 

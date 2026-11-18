@@ -4,12 +4,14 @@ import { STATION_MAP } from './dlrData';
 import { soundEngine } from './audio';
 
 export type ObserveFocus =
+  | 'FULL_AUTOPILOT'
   | 'HELP_ME_FIX_IT'
   | 'BALANCED'
   | 'CRISIS_RECOVERY'
   | 'DLR_LORE_STATS'
   | 'TIMETABLE_MASTERY';
 export type ObservePace = 'RELAXED' | 'NORMAL' | 'BRISK';
+export type AutopilotRegime = 'BUSY PEAK WAVE' | 'ACTIVE RECOVERY' | 'SLACK WATCH';
 
 export interface ObserveCallout {
   title: string;
@@ -207,13 +209,16 @@ export class ObserveController {
   private schematic: SchematicCanvas;
 
   public active: boolean = false;
-  public focus: ObserveFocus = 'BALANCED';
+  public focus: ObserveFocus = 'FULL_AUTOPILOT';
   public pace: ObservePace = 'NORMAL';
   public currentCallout: ObserveCallout | null = null;
   public actionsTakenCount: number = 0;
 
   private stepTimerSeconds: number = 0;
   private quietBeatCounter: number = 0;
+  private slackBeatsSinceWave: number = 0;
+  private autopilotBusyCycleCount: number = 0;
+  private autopilotIsBusyWave: boolean = false;
   private loreIndex: number = 0;
   private tipIndex: number = 0;
   private watchpointIndex: number = 0;
@@ -264,6 +269,29 @@ export class ObserveController {
     }
 
     this.onUpdateUI?.();
+  }
+
+  public getAutopilotRegime(): AutopilotRegime {
+    const hasOpenIncidents = this.sim.incidents.some((i) => !i.resolved);
+    const hasBrokenTrain = this.sim.trains.some((t) => t.state === 'BROKEN_DOWN');
+    if (hasOpenIncidents || hasBrokenTrain) return 'ACTIVE RECOVERY';
+    if (this.autopilotIsBusyWave) return 'BUSY PEAK WAVE';
+    return 'SLACK WATCH';
+  }
+
+  public engageFullAutopilot() {
+    this.focus = 'FULL_AUTOPILOT';
+    this.slackBeatsSinceWave = 0;
+    if (!this.active) {
+      this.active = true;
+    }
+    if (this.sim.timeScale === 0) {
+      this.sim.timeScale = 1;
+    }
+    this.stepTimerSeconds = 0;
+    soundEngine.playSplitFlap(6);
+    this.sim.addLog('ARS', 'FULL AUTO-PILOT ENGAGED: Autonomous Sit-Back Shift Watch cycling Busy Waves & Slack Tours.');
+    this.executeNextControllerStep();
   }
 
   public engageHelpMeFixIt(fixAllImmediately = false) {
@@ -464,7 +492,104 @@ export class ObserveController {
       }
     }
 
-    // 3. PRIORITY C: Only inject a demonstration disruption if focus is CRISIS_RECOVERY (or occasionally in BALANCED) — NEVER in HELP_ME_FIX_IT!
+    // 3. PRIORITY C: Busy vs Slack Regime Orchestration
+    //    - In FULL_AUTOPILOT, alternate smoothly between Slack Watch spells (5-mode tours) and periodic Busy Waves / realistic incidents
+    //    - NEVER inject faults in HELP_ME_FIX_IT!
+    if (this.focus === 'FULL_AUTOPILOT' && unresolved.length === 0 && brokenTrains.length === 0) {
+      this.slackBeatsSinceWave++;
+
+      // Transition from Busy Wave back into peaceful Slack Watch after lingering crowd surges / extra shuttles settle
+      if (this.autopilotIsBusyWave && this.slackBeatsSinceWave >= 4) {
+        this.autopilotIsBusyWave = false;
+        this.slackBeatsSinceWave = 0;
+        for (const st of this.sim.stations) {
+          this.sim.stationCrowdMultiplier[st.id] = 1.0;
+        }
+        // Reset base headways gently to balanced daytime cruise
+        for (const tpl of this.sim.templates) {
+          if (!tpl.isException && tpl.intervalMins < 5) {
+            tpl.intervalMins = 6;
+          }
+        }
+        const pop = STATION_MAP['POP'] || { x: 1220, y: 840 };
+        this.schematic.focusCoordinates(pop.x, pop.y, 0.88);
+        this.currentCallout = {
+          title: 'Slack Period Transition — Inter-Peak Headway Cruise',
+          tag: 'CONTROLLER LOGIC',
+          rationale:
+            'Station inflows have normalised after that peak wave. I am relaxing timetable headways back to steady off-peak cruise so trains recover margin at termini while we tour live branch telemetry.',
+          statHighlight: `Regime: SLACK WATCH · Network PPM: ${this.sim.getPerformanceMetrics().ppm}% · Fleet: ${this.sim.trains.length}`,
+          worldX: pop.x,
+          worldY: pop.y,
+          actionSummary: 'Entered Slack Cruise',
+        };
+        this.onUpdateUI?.();
+        return;
+      }
+
+      // Trigger a fresh Busy Wave every 6 slack beats so there's an authentic ebb & flow while sitting back
+      if (!this.autopilotIsBusyWave && this.slackBeatsSinceWave >= 6) {
+        this.autopilotIsBusyWave = true;
+        this.slackBeatsSinceWave = 0;
+        this.autopilotBusyCycleCount++;
+
+        const waveMode = this.autopilotBusyCycleCount % 3;
+        if (waveMode === 1 && this.sim.templates.length < 9) {
+          // Commuter / Airport Surge + Extra Shuttle
+          const surgeKey = this.autopilotBusyCycleCount % 2 === 1 ? 'BANKING_CAW' : 'EXCEL_CUH';
+          this.sim.stationCrowdMultiplier['CAW'] = 1.45;
+          this.sim.stationCrowdMultiplier['LCA'] = 1.5;
+          this.sim.injectSpecialExceptionService(surgeKey);
+          const hubId = surgeKey === 'BANKING_CAW' ? 'CAW' : 'CUH';
+          const st = STATION_MAP[hubId];
+          if (st) {
+            this.schematic.selectedStation = st;
+            this.schematic.focusCoordinates(st.x, st.y, 1.0);
+          }
+          this.currentCallout = {
+            title: `Busy Wave Incoming: ${surgeKey === 'BANKING_CAW' ? 'Canary Wharf Banking Surge' : 'ExCeL & Airport Wave'}`,
+            tag: 'LIVE TELEMETRY',
+            rationale:
+              'Passenger inflows are picking up across the eastern & central hubs. I have automatically slotted a relief shuttle and raised peak monitoring—watch the Piano Roll and Health Overwatch track the demand wave.',
+            statHighlight: `Regime: BUSY PEAK WAVE · Crowd Inflow 1.5× · Active Fleet: ${this.sim.trains.length}`,
+            worldX: st ? st.x : 1220,
+            worldY: st ? st.y : 840,
+            actionSummary: `Launched ${surgeKey} Peak Wave`,
+          };
+          this.onUpdateUI?.();
+          return;
+        } else {
+          // Realistic operational disruption for the Co-Pilot to diagnose and clear cleanly on the next beat!
+          this.sim.triggerScopedDisruption('ALL');
+          const newInc = this.sim.incidents.find((i) => !i.resolved);
+          if (newInc) {
+            let wx = 1220;
+            let wy = 840;
+            if (newInc.stationId && STATION_MAP[newInc.stationId]) {
+              wx = STATION_MAP[newInc.stationId].x;
+              wy = STATION_MAP[newInc.stationId].y;
+            } else if (newInc.nodeId && this.sim.nodeMap[newInc.nodeId]) {
+              wx = this.sim.nodeMap[newInc.nodeId].x;
+              wy = this.sim.nodeMap[newInc.nodeId].y;
+            }
+            this.schematic.focusCoordinates(wx, wy, 1.04);
+            this.currentCallout = {
+              title: `Auto-Pilot Busy Event: ${newInc.title}`,
+              tag: 'LIVE TELEMETRY',
+              rationale: `A live disruption just developed at ${
+                newInc.stationId || newInc.nodeId || 'junction'
+              }. Notice how adjacent branches shift to Amber/Red on the Health Overwatch Map—on my next 16s beat I will step in and resolve it automatically.`,
+              statHighlight: `Regime: ACTIVE RECOVERY · Severity: ${newInc.severity}`,
+              worldX: wx,
+              worldY: wy,
+            };
+            this.onUpdateUI?.();
+            return;
+          }
+        }
+      }
+    }
+
     if (
       (this.focus === 'CRISIS_RECOVERY' || (this.focus === 'BALANCED' && Math.random() < 0.18)) &&
       unresolved.length === 0 &&

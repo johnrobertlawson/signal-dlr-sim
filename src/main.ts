@@ -44,9 +44,11 @@ const factsheetStationSelect = document.getElementById('factsheet-station-Hopper
 // Observe Co-Pilot & Shift Preset DOM Elements
 const shiftPresetSelect = document.getElementById('shift-preset-select') as HTMLSelectElement;
 const toggleObserveBtn = document.getElementById('toggle-observe-btn')!;
+const autopilotStartupSwitch = document.getElementById('autopilot-startup-switch') as HTMLInputElement | null;
 const observeHudCard = document.getElementById('observe-hud-card')!;
 const observeCalloutTitle = document.getElementById('observe-callout-title')!;
 const observeCalloutTag = document.getElementById('observe-callout-tag')!;
+const observeRegimePill = document.getElementById('observe-regime-pill');
 const observeCalloutRationale = document.getElementById('observe-callout-rationale')!;
 const observeCalloutStat = document.getElementById('observe-callout-stat')!;
 const observeFocusSelect = document.getElementById('observe-focus-select') as HTMLSelectElement;
@@ -138,12 +140,15 @@ if (probe.popover !== 'hint') {
 
 wireInterestTooltips();
 
-// Conditionally load Popover & Interest Invokers polyfills only when native support is missing
+// Conditionally load Popover, Interest Invokers, and Input Switch polyfills only when native support is missing
 if (!Object.hasOwn(HTMLElement.prototype, 'popover')) {
   import('@oddbird/popover-polyfill');
 }
 if (!('interestForElement' in HTMLButtonElement.prototype)) {
   import('interestfor');
+}
+if (!('switch' in HTMLInputElement.prototype)) {
+  import('input-switch-polyfill');
 }
 
 // State cache to prevent constant DOM re-creation / flashing on Split-Flap board and Train Inspector
@@ -217,7 +222,7 @@ function renderDynamicHotkeyBar() {
 // Render Observe Co-Pilot Floating Narrative HUD & Beacon
 function renderObserveHUD() {
   toggleObserveBtn.classList.toggle('active', observe.active);
-  toggleObserveBtn.textContent = observe.active ? '👁 OBSERVE CO-PILOT: ON' : '👁 OBSERVE CO-PILOT: OFF';
+  toggleObserveBtn.textContent = observe.active ? '🛋️ AUTO-PILOT: ON' : '🛋️ AUTO-PILOT: OFF';
 
   if (!observe.active) {
     observeHudCard.hidden = true;
@@ -228,6 +233,12 @@ function renderObserveHUD() {
   observeHudCard.hidden = false;
   if (observeFocusSelect && observeFocusSelect.value !== observe.focus) {
     observeFocusSelect.value = observe.focus;
+  }
+  if (observeRegimePill) {
+    const regime = observe.getAutopilotRegime();
+    observeRegimePill.textContent = regime;
+    observeRegimePill.dataset.regime =
+      regime === 'BUSY PEAK WAVE' ? 'busy' : regime === 'ACTIVE RECOVERY' ? 'recovery' : 'slack';
   }
   if (observeCountdownProgress) {
     observeCountdownProgress.value = observe.getRemainingPercentage();
@@ -1089,6 +1100,8 @@ window.addEventListener('keydown', (e) => {
     sim.triggerScopedDisruption('ALL');
   } else if (key === 'o') {
     observe.toggle();
+  } else if (key === 'a') {
+    observe.engageFullAutopilot();
   } else if (key === 'm') {
     popoutDeskBtn?.click();
   } else if (key === 's') {
@@ -1308,8 +1321,31 @@ popoutDeskBtn?.addEventListener('click', () => {
   nxStatusText.textContent = '2ND MONITOR TELEMETRY DESK ACTIVE · Monitor 1 Expanded to 100% Schematic Wall (Click 📥 DOCK SIDEBAR to restore)';
 });
 
+// Persist & wire "Auto-Pilot ON LAUNCH" native switch
+const AUTOPILOT_STORAGE_KEY = 'dlr_autopilot_on_start';
+if (autopilotStartupSwitch) {
+  autopilotStartupSwitch.checked = localStorage.getItem(AUTOPILOT_STORAGE_KEY) === 'true';
+  autopilotStartupSwitch.addEventListener('change', () => {
+    localStorage.setItem(AUTOPILOT_STORAGE_KEY, String(autopilotStartupSwitch.checked));
+    soundEngine.playRelayClick(autopilotStartupSwitch.checked);
+    if (autopilotStartupSwitch.checked && !observe.active) {
+      observe.engageFullAutopilot();
+    }
+    nxStatusText.textContent = autopilotStartupSwitch.checked
+      ? 'ON-LAUNCH AUTO-PILOT SAVED · Every future session will start straight in Full Auto-Pilot Sit-Back Mode'
+      : 'Manual Launch Restored · Toggle 🛋️ AUTO-PILOT anytime or press [A]';
+  });
+}
+
 // If this window was opened with ?mode=desk, mount the 4-Quadrant Second-Monitor Data Dashboard!
-const isDeskWindow = new URLSearchParams(window.location.search).get('mode') === 'desk';
+const urlParams = new URLSearchParams(window.location.search);
+const isDeskWindow = urlParams.get('mode') === 'desk';
+const startInAutopilot =
+  !isDeskWindow &&
+  (urlParams.get('mode') === 'autopilot' ||
+    urlParams.get('autopilot') === '1' ||
+    localStorage.getItem(AUTOPILOT_STORAGE_KEY) === 'true');
+
 if (isDeskWindow) {
   mountSecondMonitorDesk(sim, schematic, observe);
 } else {
@@ -1317,6 +1353,9 @@ if (isDeskWindow) {
   setTimeout(() => {
     schematic.handleResize();
     schematic.jumpToSector('CORE');
+    if (startInAutopilot) {
+      observe.engageFullAutopilot();
+    }
     refreshAllUI();
   }, 60);
 }

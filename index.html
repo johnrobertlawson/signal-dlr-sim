@@ -99,12 +99,16 @@
             <strong>SELTRAC CBTC</strong> · Driverless moving-block signalling. Green bars ahead of trains show live safe-braking footprints.
           </div>
 
-          <button type="button" id="toggle-observe-btn" class="util-btn observe-toggle-btn" title="Let an Expert DLR Controller take the wheel and explain their live logic (Key O)">
-            👁 OBSERVE CO-PILOT: OFF
+          <button type="button" id="toggle-observe-btn" class="util-btn observe-toggle-btn" title="Engage Full Auto-Pilot Co-Pilot (Sit-Back Watch Mode — Key O / Key A)">
+            🛋️ AUTO-PILOT: OFF
           </button>
-          <button type="button" class="info-chip" interestfor="tip-observe" popovertarget="tip-observe" popovertargetaction="show" aria-label="About Observe Co-Pilot & Help Me Fix It Mode">i</button>
+          <label class="autopilot-start-switch-label" for="autopilot-startup-switch" title="Always start new sessions directly in Full Auto-Pilot Sit-Back Mode">
+            <input id="autopilot-startup-switch" type="checkbox" switch />
+            <span>ON LAUNCH</span>
+          </label>
+          <button type="button" class="info-chip" interestfor="tip-observe" popovertarget="tip-observe" popovertargetaction="show" aria-label="About Full Auto-Pilot Co-Pilot and On-Launch Switch">i</button>
           <div id="tip-observe" popover="hint" class="terse-tip">
-            <strong>OBSERVE &amp; "HELP ME! FIX IT!" CO-PILOT [Key O]</strong> · Watch a veteran DLR controller take the wheel, pan to live bottlenecks, dispatch PSAs, and explain real-world DLR facts &amp; stats, or switch to <strong>🆘 Help Me! Fix It!</strong> to have the AI stabilize all faults for you.
+            <strong>FULL AUTO-PILOT CO-PILOT [Key O]</strong> · Pure sit-back watch mode: resolves cold-start checks &amp; faults, cycles organically between <strong>Busy Peak Waves</strong> and <strong>Slack Watch Tours</strong> (facts, tips, watchpoints &amp; telemetry every 16s). Toggle <strong>ON LAUNCH</strong> to boot straight into Full Auto-Pilot every session (or use <code>?mode=autopilot</code>).
           </div>
 
           <button type="button" id="open-timetable-btn" class="util-btn accent-btn">
@@ -145,7 +149,10 @@
                   <h3 id="observe-callout-title">Scanning DLR Network Headways…</h3>
                 </div>
               </div>
-              <span id="observe-callout-tag" class="observe-tag-pill">CONTROLLER LOGIC</span>
+              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.22rem;">
+                <span id="observe-callout-tag" class="observe-tag-pill">CONTROLLER LOGIC</span>
+                <span id="observe-regime-pill" class="observe-regime-pill">SLACK WATCH</span>
+              </div>
             </div>
 
             <!-- Subtle Countdown Indicator before next focus pop -->
@@ -175,8 +182,9 @@
               <div class="observe-select-group">
                 <label for="observe-focus-select">MODE</label>
                 <select id="observe-focus-select">
+                  <option value="FULL_AUTOPILOT" selected>🛋️ Full Auto-Pilot (Sit-Back Cycle)</option>
                   <option value="HELP_ME_FIX_IT">🆘 Help Me! Fix It! (Rescue Only)</option>
-                  <option value="BALANCED" selected>Balanced (Ops + DLR Lore)</option>
+                  <option value="BALANCED">Balanced (Ops + DLR Lore)</option>
                   <option value="CRISIS_RECOVERY">Crisis &amp; Fault Recovery Demo</option>
                   <option value="DLR_LORE_STATS">DLR Engineering &amp; Stats Tour</option>
                   <option value="TIMETABLE_MASTERY">Peak Timetable &amp; Turnbacks</option>

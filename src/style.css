@@ -1343,6 +1343,58 @@ progress.observe-countdown-bar::-moz-progress-bar {
   transition: inline-size 0.15s linear;
 }
 
+/* Full Auto-Pilot On-Launch native switch + Regime Pill */
+.autopilot-start-switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #101927;
+  border: 1px solid #2b425e;
+  border-radius: 5px;
+  padding: 0.24rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #cbd5e1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+input[type="checkbox"][switch] {
+  accent-color: #a855f7;
+  margin: 0;
+  cursor: pointer;
+}
+
+input[type="checkbox"][switch]:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 4px;
+}
+
+.observe-regime-pill {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.observe-regime-pill[data-regime="busy"] {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.observe-regime-pill[data-regime="recovery"] {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
 .observe-countdown-label {
   font-family: var(--font-mono);
   font-size: 0.66rem;
