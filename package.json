@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --port 5173",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:mac-app": "zsh scripts/build-mac-app.sh"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
