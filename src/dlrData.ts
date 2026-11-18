@@ -1,70 +1,71 @@
 import { Station, TrackNode, TrackEdge, ServiceTemplate, ContingencyPlan } from './types';
 
+// Expanded 3180 x 2120 Pure Orthogonal + 45-Degree IECC Signalling Schematic Layout (Zero Spiderwebs)
 export const STATIONS: Station[] = [
   // 1. WEST BRANCH (Bank Deep-Tube Bore & Tower Gateway 2-Car Viaduct -> Royal Mint St -> Shadwell -> Limehouse -> Westferry)
-  { id: 'BNK', code: 'BNK', name: 'Bank', branch: 'West', x: 165, y: 430, maxCars: 3, baseDemand: 10, interchange: ['Central', 'Northern', 'W&C'], hasTurnback: true, isTerminus: true, labelPos: 'top' },
-  { id: 'TWG', code: 'TWG', name: 'Tower Gateway', branch: 'West', x: 175, y: 575, maxCars: 2, baseDemand: 7, interchange: ['District', 'Circle', 'C2C'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
-  { id: 'SHA', code: 'SHA', name: 'Shadwell', branch: 'West', x: 355, y: 500, maxCars: 3, baseDemand: 6, interchange: ['Overground'], hasTurnback: true, isTerminus: false, labelPos: 'top' },
-  { id: 'LIM', code: 'LIM', name: 'Limehouse', branch: 'West', x: 450, y: 500, maxCars: 3, baseDemand: 6, interchange: ['C2C'], hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
-  { id: 'WFE', code: 'WFE', name: 'Westferry', branch: 'West', x: 545, y: 500, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  { id: 'BNK', code: 'BNK', name: 'Bank', branch: 'West', x: 230, y: 730, maxCars: 3, baseDemand: 10, interchange: ['Central', 'Northern', 'W&C'], hasTurnback: true, isTerminus: true, labelPos: 'top' },
+  { id: 'TWG', code: 'TWG', name: 'Tower Gateway', branch: 'West', x: 210, y: 950, maxCars: 2, baseDemand: 7, interchange: ['District', 'Circle', 'C2C'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
+  { id: 'SHA', code: 'SHA', name: 'Shadwell', branch: 'West', x: 540, y: 840, maxCars: 3, baseDemand: 6, interchange: ['Overground'], hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  { id: 'LIM', code: 'LIM', name: 'Limehouse', branch: 'West', x: 680, y: 840, maxCars: 3, baseDemand: 6, interchange: ['C2C'], hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
+  { id: 'WFE', code: 'WFE', name: 'Westferry', branch: 'West', x: 820, y: 840, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'top' },
 
-  // 2. STRATFORD INTERNATIONAL & STRATFORD REGIONAL OLYMPIC COMPLEX + NORTH BRANCH (to Poplar)
-  { id: 'STI', code: 'STI', name: 'Stratford International', branch: 'StratfordIntl', x: 945, y: 62, maxCars: 3, baseDemand: 8, interchange: ['HS1 Southeastern'], hasTurnback: true, isTerminus: true, labelPos: 'top' },
-  { id: 'STR', code: 'STR', name: 'Stratford', branch: 'North', x: 845, y: 134, maxCars: 3, baseDemand: 10, interchange: ['Central', 'Jubilee', 'Elizabeth', 'Overground'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
-  { id: 'PML', code: 'PML', name: 'Pudding Mill Lane', branch: 'North', x: 740, y: 204, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'right' },
-  { id: 'BOW', code: 'BOW', name: 'Bow Church', branch: 'North', x: 740, y: 264, maxCars: 3, baseDemand: 5, interchange: ['District', 'H&C'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
-  { id: 'DEV', code: 'DEV', name: 'Devons Road', branch: 'North', x: 740, y: 320, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'left' },
-  { id: 'LAN', code: 'LAN', name: 'Langdon Park', branch: 'North', x: 740, y: 376, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'left' },
-  { id: 'ALL', code: 'ALL', name: 'All Saints', branch: 'North', x: 740, y: 432, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'left' },
+  // 2. STRATFORD INTERNATIONAL (STI) & STRATFORD REGIONAL (STR) OLYMPIC ARCH + NORTH SPINE (x = 1040)
+  // STI sits at the top-center (x = 1380, y = 75), dropping straight down to STR (x = 1380, y = 185),
+  // which forks cleanly West to the x = 1040 Bow/Poplar Spine and East to the x = 1760 Lea Valley/Canning Town Spine!
+  { id: 'STI', code: 'STI', name: 'Stratford International', branch: 'StratfordIntl', x: 1380, y: 75, maxCars: 3, baseDemand: 8, interchange: ['HS1 Southeastern'], hasTurnback: true, isTerminus: true, labelPos: 'top' },
+  { id: 'STR', code: 'STR', name: 'Stratford', branch: 'North', x: 1380, y: 185, maxCars: 3, baseDemand: 10, interchange: ['Central', 'Jubilee', 'Elizabeth', 'Overground'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
+  { id: 'PML', code: 'PML', name: 'Pudding Mill Lane', branch: 'North', x: 1040, y: 310, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'right' },
+  { id: 'BOW', code: 'BOW', name: 'Bow Church', branch: 'North', x: 1040, y: 420, maxCars: 3, baseDemand: 5, interchange: ['District', 'H&C'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
+  { id: 'DEV', code: 'DEV', name: 'Devons Road', branch: 'North', x: 1040, y: 530, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'left' },
+  { id: 'LAN', code: 'LAN', name: 'Langdon Park', branch: 'North', x: 1040, y: 635, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'left' },
+  { id: 'ALL', code: 'ALL', name: 'All Saints', branch: 'North', x: 1040, y: 740, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'left' },
 
-  // 3. STRATFORD INTERNATIONAL -> LEA VALLEY -> CANNING TOWN BRANCH (via Stratford Regional P16/P17)
-  { id: 'SHS', code: 'SHS', name: 'Stratford High Street', branch: 'StratfordIntl', x: 1105, y: 198, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'right' },
-  { id: 'ABB', code: 'ABB', name: 'Abbey Road', branch: 'StratfordIntl', x: 1135, y: 270, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'right' },
-  { id: 'WHM', code: 'WHM', name: 'West Ham', branch: 'StratfordIntl', x: 1165, y: 342, maxCars: 3, baseDemand: 7, interchange: ['Jubilee', 'District', 'C2C'], hasTurnback: false, isTerminus: false, labelPos: 'right' },
-  { id: 'STL', code: 'STL', name: 'Star Lane', branch: 'StratfordIntl', x: 1192, y: 416, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'right' },
+  // 3. LEA VALLEY SPINE (Vertical Axis x = 1760: Stratford High St -> Abbey Road -> West Ham -> Star Lane -> Canning Town)
+  { id: 'SHS', code: 'SHS', name: 'Stratford High Street', branch: 'StratfordIntl', x: 1760, y: 310, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'right' },
+  { id: 'ABB', code: 'ABB', name: 'Abbey Road', branch: 'StratfordIntl', x: 1760, y: 425, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'right' },
+  { id: 'WHM', code: 'WHM', name: 'West Ham', branch: 'StratfordIntl', x: 1760, y: 540, maxCars: 3, baseDemand: 7, interchange: ['Jubilee', 'District', 'C2C'], hasTurnback: false, isTerminus: false, labelPos: 'right' },
+  { id: 'STL', code: 'STL', name: 'Star Lane', branch: 'StratfordIntl', x: 1760, y: 655, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'right' },
 
-  // 4. CENTRAL HUB & EXPANDED DELTA + POPLAR MULTI-ROAD DEPOT
-  { id: 'POP', code: 'POP', name: 'Poplar', branch: 'Central', x: 810, y: 500, maxCars: 3, baseDemand: 8, hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
-  { id: 'PDP', code: 'PDP', name: 'Poplar Depot', branch: 'Central', x: 915, y: 352, maxCars: 3, baseDemand: 1, hasTurnback: true, isTerminus: true, labelPos: 'top' },
-  { id: 'BLW', code: 'BLW', name: 'Blackwall', branch: 'Central', x: 965, y: 500, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
-  { id: 'EIR', code: 'EIR', name: 'East India', branch: 'Central', x: 1085, y: 500, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  // 4. CENTRAL HORIZONTAL TRUNK (y = 840) & POPLAR 3-ROAD DEPOT YARD (x = 1220..1540, y = 540..680)
+  { id: 'POP', code: 'POP', name: 'Poplar', branch: 'Central', x: 1220, y: 840, maxCars: 3, baseDemand: 8, hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
+  { id: 'PDP', code: 'PDP', name: 'Poplar Depot', branch: 'Central', x: 1350, y: 610, maxCars: 3, baseDemand: 1, hasTurnback: true, isTerminus: true, labelPos: 'top' },
+  { id: 'BLW', code: 'BLW', name: 'Blackwall', branch: 'Central', x: 1500, y: 840, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
+  { id: 'EIR', code: 'EIR', name: 'East India', branch: 'Central', x: 1680, y: 840, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  { id: 'CNT', code: 'CNT', name: 'Canning Town', branch: 'Central', x: 1900, y: 840, maxCars: 3, baseDemand: 9, interchange: ['Jubilee'], hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
 
-  // 5. SOUTH BRANCH (West India Quay Asymmetric 4-Track Delta -> Canary Wharf 3-Road Hub -> Isle of Dogs -> Thames -> Lewisham)
-  { id: 'WIQ', code: 'WIQ', name: 'West India Quay', branch: 'South', x: 705, y: 615, maxCars: 3, baseDemand: 6, hasTurnback: false, isTerminus: false, labelPos: 'right' },
-  { id: 'CAW', code: 'CAW', name: 'Canary Wharf', branch: 'South', x: 705, y: 685, maxCars: 3, baseDemand: 10, interchange: ['Jubilee', 'Elizabeth'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
-  { id: 'HER', code: 'HER', name: 'Heron Quays', branch: 'South', x: 705, y: 745, maxCars: 3, baseDemand: 7, hasTurnback: false, isTerminus: false, labelPos: 'left' },
-  { id: 'SQY', code: 'SQY', name: 'South Quay', branch: 'South', x: 705, y: 795, maxCars: 3, baseDemand: 7, hasTurnback: false, isTerminus: false, labelPos: 'left' },
-  { id: 'CRH', code: 'CRH', name: 'Crossharbour', branch: 'South', x: 705, y: 845, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'left' },
-  { id: 'MUD', code: 'MUD', name: 'Mudchute', branch: 'South', x: 705, y: 895, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'left' },
-  { id: 'ISG', code: 'ISG', name: 'Island Gardens', branch: 'South', x: 705, y: 945, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'left' },
-  // --- RIVER THAMES GREENWICH SUB-AQUEOUS BORE (y = 987) ---
-  { id: 'CUT', code: 'CUT', name: 'Cutty Sark', branch: 'South', x: 705, y: 1030, maxCars: 2, baseDemand: 8, hasTurnback: false, isTerminus: false, labelPos: 'left' },
-  { id: 'GRE', code: 'GRE', name: 'Greenwich', branch: 'South', x: 705, y: 1085, maxCars: 3, baseDemand: 8, interchange: ['Southeastern', 'Thameslink'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
-  { id: 'DEP', code: 'DEP', name: 'Deptford Bridge', branch: 'South', x: 705, y: 1135, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'left' },
-  { id: 'ELV', code: 'ELV', name: 'Elverson Road', branch: 'South', x: 705, y: 1185, maxCars: 2, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'left' },
-  { id: 'LEW', code: 'LEW', name: 'Lewisham', branch: 'South', x: 705, y: 1240, maxCars: 3, baseDemand: 9, interchange: ['Southeastern'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
+  // 5. SOUTH SPINE (Vertical Axis x = 1040: West India Quay -> Canary Wharf -> Isle of Dogs -> Thames -> Cutty Sark -> Lewisham)
+  { id: 'WIQ', code: 'WIQ', name: 'West India Quay', branch: 'South', x: 1040, y: 1040, maxCars: 3, baseDemand: 6, hasTurnback: false, isTerminus: false, labelPos: 'right' },
+  { id: 'CAW', code: 'CAW', name: 'Canary Wharf', branch: 'South', x: 1040, y: 1150, maxCars: 3, baseDemand: 10, interchange: ['Jubilee', 'Elizabeth'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
+  { id: 'HER', code: 'HER', name: 'Heron Quays', branch: 'South', x: 1040, y: 1245, maxCars: 3, baseDemand: 7, hasTurnback: false, isTerminus: false, labelPos: 'left' },
+  { id: 'SQY', code: 'SQY', name: 'South Quay', branch: 'South', x: 1040, y: 1330, maxCars: 3, baseDemand: 7, hasTurnback: false, isTerminus: false, labelPos: 'left' },
+  { id: 'CRH', code: 'CRH', name: 'Crossharbour', branch: 'South', x: 1040, y: 1415, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'left' },
+  { id: 'MUD', code: 'MUD', name: 'Mudchute', branch: 'South', x: 1040, y: 1500, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'left' },
+  { id: 'ISG', code: 'ISG', name: 'Island Gardens', branch: 'South', x: 1040, y: 1585, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'left' },
+  // --- RIVER THAMES GREENWICH SUB-AQUEOUS BORE (y = 1650) ---
+  { id: 'CUT', code: 'CUT', name: 'Cutty Sark', branch: 'South', x: 1040, y: 1715, maxCars: 2, baseDemand: 8, hasTurnback: false, isTerminus: false, labelPos: 'left' },
+  { id: 'GRE', code: 'GRE', name: 'Greenwich', branch: 'South', x: 1040, y: 1800, maxCars: 3, baseDemand: 8, interchange: ['Southeastern', 'Thameslink'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
+  { id: 'DEP', code: 'DEP', name: 'Deptford Bridge', branch: 'South', x: 1040, y: 1885, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'left' },
+  { id: 'ELV', code: 'ELV', name: 'Elverson Road', branch: 'South', x: 1040, y: 1970, maxCars: 2, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'left' },
+  { id: 'LEW', code: 'LEW', name: 'Lewisham', branch: 'South', x: 1040, y: 2055, maxCars: 3, baseDemand: 9, interchange: ['Southeastern'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
 
-  // 6. CANNING TOWN STACKED INTERCHANGE
-  { id: 'CNT', code: 'CNT', name: 'Canning Town', branch: 'Central', x: 1215, y: 500, maxCars: 3, baseDemand: 9, interchange: ['Jubilee'], hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
+  // 6. BECKTON BRANCH (Lower Deck y = 700 -> Cyprus Loop x = 2980 -> Upper Deck y = 380 -> Beckton 4-Road Depot y = 115..215)
+  { id: 'RVC', code: 'RVC', name: 'Royal Victoria', branch: 'Beckton', x: 2080, y: 700, maxCars: 3, baseDemand: 6, interchange: ['IFS Cloud Cable Car'], hasTurnback: false, isTerminus: false, labelPos: 'top' },
+  { id: 'CUH', code: 'CUH', name: 'Custom House (ExCeL)', branch: 'Beckton', x: 2260, y: 700, maxCars: 3, baseDemand: 9, interchange: ['Elizabeth'], hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
+  { id: 'PRR', code: 'PRR', name: 'Prince Regent', branch: 'Beckton', x: 2480, y: 700, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  { id: 'RAL', code: 'RAL', name: 'Royal Albert', branch: 'Beckton', x: 2660, y: 700, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
+  { id: 'BKP', code: 'BKP', name: 'Beckton Park', branch: 'Beckton', x: 2840, y: 700, maxCars: 3, baseDemand: 3, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
+  { id: 'CYP', code: 'CYP', name: 'Cyprus', branch: 'Beckton', x: 2980, y: 540, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'right' },
+  { id: 'GAL', code: 'GAL', name: 'Gallions Reach', branch: 'Beckton', x: 2800, y: 380, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
+  { id: 'BCK', code: 'BCK', name: 'Beckton', branch: 'Beckton', x: 2400, y: 380, maxCars: 3, baseDemand: 7, hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
+  { id: 'BDP', code: 'BDP', name: 'Beckton Depot', branch: 'Beckton', x: 2600, y: 215, maxCars: 3, baseDemand: 1, hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
 
-  // 7. BECKTON BRANCH (Wrapped Non-Geographically Upward after Beckton Park for Expanded Beckton Depot & Stabling Complex)
-  { id: 'RVC', code: 'RVC', name: 'Royal Victoria', branch: 'Beckton', x: 1350, y: 430, maxCars: 3, baseDemand: 6, interchange: ['IFS Cloud Cable Car'], hasTurnback: false, isTerminus: false, labelPos: 'top' },
-  { id: 'CUH', code: 'CUH', name: 'Custom House (ExCeL)', branch: 'Beckton', x: 1485, y: 430, maxCars: 3, baseDemand: 9, interchange: ['Elizabeth'], hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
-  { id: 'PRR', code: 'PRR', name: 'Prince Regent', branch: 'Beckton', x: 1625, y: 430, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'top' },
-  { id: 'RAL', code: 'RAL', name: 'Royal Albert', branch: 'Beckton', x: 1760, y: 430, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
-  { id: 'BKP', code: 'BKP', name: 'Beckton Park', branch: 'Beckton', x: 1895, y: 430, maxCars: 3, baseDemand: 3, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
-  { id: 'CYP', code: 'CYP', name: 'Cyprus', branch: 'Beckton', x: 1965, y: 315, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'right' },
-  { id: 'GAL', code: 'GAL', name: 'Gallions Reach', branch: 'Beckton', x: 1855, y: 220, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
-  { id: 'BCK', code: 'BCK', name: 'Beckton', branch: 'Beckton', x: 1585, y: 220, maxCars: 3, baseDemand: 7, hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
-  { id: 'BDP', code: 'BDP', name: 'Beckton Depot', branch: 'Beckton', x: 1720, y: 115, maxCars: 3, baseDemand: 1, hasTurnback: true, isTerminus: true, labelPos: 'top' },
-
-  // 8. WOOLWICH ARSENAL BRANCH (North Bank: WSV -> PDK -> LCA -> KGV, then UNDER the Labelled River Thames to WOO!)
-  { id: 'WSV', code: 'WSV', name: 'West Silvertown', branch: 'Woolwich', x: 1355, y: 575, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'top' },
-  { id: 'PDK', code: 'PDK', name: 'Pontoon Dock', branch: 'Woolwich', x: 1495, y: 575, maxCars: 3, baseDemand: 6, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
-  { id: 'LCA', code: 'LCA', name: 'London City Airport', branch: 'Woolwich', x: 1645, y: 575, maxCars: 3, baseDemand: 9, hasTurnback: true, isTerminus: false, labelPos: 'top' },
-  { id: 'KGV', code: 'KGV', name: 'King George V', branch: 'Woolwich', x: 1795, y: 575, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'top' },
-  // --- RIVER THAMES WOOLWICH SUB-AQUEOUS BORE (y = 685) ---
-  { id: 'WOO', code: 'WOO', name: 'Woolwich Arsenal', branch: 'Woolwich', x: 1855, y: 795, maxCars: 3, baseDemand: 9, interchange: ['Elizabeth', 'Southeastern'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
+  // 7. WOOLWICH ARSENAL BRANCH (North Bank y = 980 -> UNDER River Thames y = 1120 -> Sub-Surface Woolwich Arsenal y = 1260)
+  { id: 'WSV', code: 'WSV', name: 'West Silvertown', branch: 'Woolwich', x: 2080, y: 980, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'top' },
+  { id: 'PDK', code: 'PDK', name: 'Pontoon Dock', branch: 'Woolwich', x: 2260, y: 980, maxCars: 3, baseDemand: 6, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
+  { id: 'LCA', code: 'LCA', name: 'London City Airport', branch: 'Woolwich', x: 2460, y: 980, maxCars: 3, baseDemand: 9, hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  { id: 'KGV', code: 'KGV', name: 'King George V', branch: 'Woolwich', x: 2660, y: 980, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  // --- RIVER THAMES WOOLWICH SUB-AQUEOUS BORE (y = 1120) ---
+  { id: 'WOO', code: 'WOO', name: 'Woolwich Arsenal', branch: 'Woolwich', x: 2780, y: 1260, maxCars: 3, baseDemand: 9, interchange: ['Elizabeth', 'Southeastern'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
 ];
 
 export const STATION_MAP: Record<string, Station> = {};
@@ -87,7 +88,7 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
       (st.branch === 'StratfordIntl' && stId !== 'STI') ||
       stId === 'CYP';
 
-    const offset = stId === 'CAW' ? 20 : 12;
+    const offset = stId === 'CAW' ? 24 : 14;
     const upX = isVertical ? st.x - offset : st.x;
     const upY = isVertical ? st.y : st.y - offset;
     const dnX = isVertical ? st.x + offset : st.x;
@@ -175,7 +176,6 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     }
   }
 
-  // Helper to add a custom siding / junction / depot road node
   const addSpecialNode = (
     id: string,
     name: string,
@@ -263,15 +263,15 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
   };
 
   // ============================================================================
-  // 1. DETAILED BANK DEEP-TUBE HEADSHUNT & TOWER GATEWAY 2-CAR VIADUCT THROAT
+  // 1. WEST SECTOR: BANK DEEP-TUBE HEADSHUNT & TOWER GATEWAY 2-CAR VIADUCT THROAT
   // ============================================================================
   addSpecialNode(
     'BNK_HSH',
     'Bank Tail Headshunt Overrun Bore',
     'BNK',
     'siding',
-    78,
-    430,
+    95,
+    730,
     'BI',
     'BNK HEADSHUNT',
     3,
@@ -285,8 +285,8 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Tower Gateway Minories Single-Lead Throat (2-Car Max)',
     'TWG',
     'junction',
-    248,
-    575,
+    320,
+    950,
     'BI',
     'MINORIES 2C THROAT',
     2,
@@ -300,8 +300,8 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Royal Mint St Junction (UP)',
     'SHA',
     'junction',
-    278,
-    488,
+    420,
+    826,
     'UP',
     'ROYAL MINT ST JCT',
     3,
@@ -312,8 +312,8 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Royal Mint St Junction (DN)',
     'SHA',
     'junction',
-    278,
-    512,
+    420,
+    854,
     'DN',
     '',
     3,
@@ -340,34 +340,20 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     isTunnel: true,
   });
 
-  // Tower Gateway <-> Royal Mint St (2-Car Brick Viaduct Curve, SOP-TWG)
-  edges.push({
-    id: 'E_TWG_RMJ_DN',
-    from: 'TWG_DN',
-    to: 'RMJ_DN',
-    lengthMeters: 780,
-    maxSpeedMph: 25,
-    edgeLabel: 'TWG 2-CAR VIADUCT (SOP-TWG)',
-  });
+  // Tower Gateway (via Minories Single-Lead Throat) <-> Royal Mint St (SOP-TWG)
   edges.push({
     id: 'E_TWG_THROAT_RMJ_DN',
     from: 'TWG_THROAT',
     to: 'RMJ_DN',
-    lengthMeters: 660,
+    lengthMeters: 680,
     maxSpeedMph: 25,
-  });
-  edges.push({
-    id: 'E_RMJ_TWG_UP',
-    from: 'RMJ_UP',
-    to: 'TWG_UP',
-    lengthMeters: 780,
-    maxSpeedMph: 25,
+    edgeLabel: 'TWG 2-CAR VIADUCT (SOP-TWG)',
   });
   edges.push({
     id: 'E_RMJ_TWG_THROAT',
     from: 'RMJ_UP',
     to: 'TWG_THROAT',
-    lengthMeters: 660,
+    lengthMeters: 680,
     maxSpeedMph: 25,
   });
 
@@ -378,108 +364,39 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
   connectStations('LIM', 'WFE', 950, 45);
 
   // ============================================================================
-  // 2. WEST INDIA QUAY (WIQ) ASYMMETRIC 4-TRACK DELTA & CAW->WFE BYPASS (SOP-WIQ)
+  // 2. CLEAN GEOMETRIC DELTA & WEST INDIA QUAY (WIQ) 4-TRACK BYPASS (SOP-WIQ)
   // ============================================================================
-  // Real-world DLR alignment:
-  // - Southbound WFE -> WIQ -> CAW stops at WIQ (Platform 2)
-  // - Southbound POP -> WIQ -> CAW stops at WIQ (Platform 1/2)
-  // - Northbound CAW -> WIQ -> POP stops at WIQ (Platform 4)
-  // - Northbound/Westbound CAW -> WFE (towards Bank) uses the grade-separated Westbound Dive-Under Bypass Chord (DLT_BYP_UP)
-  //   which has NO PLATFORM at West India Quay!
-  addSpecialNode(
-    'DLT_W_UP',
-    'Delta West Flying Chord (UP to WFE)',
-    'WFE',
-    'junction',
-    668,
-    478,
-    'UP',
-    'WFE↔POP FLYOVER',
-    3
-  );
-  addSpecialNode(
-    'DLT_W_DN',
-    'Delta West Flying Chord (DN to POP)',
-    'POP',
-    'junction',
-    668,
-    504,
-    'DN',
-    '',
-    3
-  );
-  // Southbound Viaduct Curve (WFE_DN -> WIQ_DN)
-  addSpecialNode(
-    'DLT_SW_DN',
-    'Delta South-West Viaduct Curve (WFE→WIQ DN)',
-    'WIQ',
-    'junction',
-    642,
-    558,
-    'DN',
-    'WFE→WIQ DN CHORD',
-    3
-  );
-  // Westbound Dive-Under / Viaduct Bypass Chord (CAW_UP -> DLT_BYP_UP -> DLT_SW_UP -> WFE_UP) — Bypasses WIQ!
+  // Top side of Delta: Direct Horizontal Flying Viaduct WFE <-> POP (y = 840)
+  connectStations('WFE', 'POP', 950, 35, true, false, 'DELTA NORTH FLYOVER (35 MPH)');
+
+  // East side of Delta: Poplar <-> West India Quay (Both directions call at WIQ!)
+  connectStations('POP', 'WIQ', 600, 25, true);
+
+  // West side of Delta:
+  // - Southbound WFE_DN -> WIQ_DN calls at West India Quay P2
+  edges.push({
+    id: 'E_WFE_WIQ_DN',
+    from: 'WFE_DN',
+    to: 'WIQ_DN',
+    lengthMeters: 620,
+    maxSpeedMph: 25,
+    isFlyover: true,
+    edgeLabel: 'WFE→WIQ DN CHORD',
+  });
+
+  // - Northbound/Westbound CAW_UP & CAW_MID -> DLT_BYP_UP -> WFE_UP bypasses West India Quay completely (SOP-WIQ)!
   addSpecialNode(
     'DLT_BYP_UP',
     'Canary Wharf → Westferry Dive-Under Bypass Track (No Platform at WIQ)',
     'WFE',
     'junction',
-    605,
-    615,
+    860,
+    1040,
     'UP',
     'CAW→WFE BYPASS (NO WIQ STOP)',
     3,
     'BYP'
   );
-  addSpecialNode(
-    'DLT_SW_UP',
-    'Delta Westbound Flyover Lead (Bypass → WFE UP)',
-    'WFE',
-    'junction',
-    585,
-    555,
-    'UP',
-    '',
-    3
-  );
-  // Delta East Dive-Under Curve (Poplar <-> West India Quay)
-  addSpecialNode(
-    'DLT_SE_UP',
-    'Delta East Curve (WIQ P4 → POP UP)',
-    'POP',
-    'junction',
-    745,
-    558,
-    'UP',
-    'POP↔WIQ CHORD',
-    3
-  );
-  addSpecialNode(
-    'DLT_SE_DN',
-    'Delta East Curve (POP → WIQ DN)',
-    'WIQ',
-    'junction',
-    775,
-    558,
-    'DN',
-    '',
-    3
-  );
-
-  // Wire Westferry <-> Poplar via Delta West Flying Chord
-  edges.push({ id: 'E_WFE_DLTW_DN', from: 'WFE_DN', to: 'DLT_W_DN', lengthMeters: 450, maxSpeedMph: 35, isFlyover: true });
-  edges.push({ id: 'E_DLTW_POP_DN', from: 'DLT_W_DN', to: 'POP_DN', lengthMeters: 500, maxSpeedMph: 35, isFlyover: true });
-  edges.push({ id: 'E_POP_DLTW_UP', from: 'POP_UP', to: 'DLT_W_UP', lengthMeters: 500, maxSpeedMph: 35, isFlyover: true });
-  edges.push({ id: 'E_DLTW_WFE_UP', from: 'DLT_W_UP', to: 'WFE_UP', lengthMeters: 450, maxSpeedMph: 35, isFlyover: true });
-  addBiLink('DLT_W_UP', 'DLT_W_DN', 90, 20, true);
-
-  // Wire Southbound WFE_DN -> DLT_SW_DN -> WIQ_DN (Southbound Bank->Lewisham trains DO stop at WIQ!)
-  edges.push({ id: 'E_WFE_DLTSW_DN', from: 'WFE_DN', to: 'DLT_SW_DN', lengthMeters: 310, maxSpeedMph: 25, isFlyover: true });
-  edges.push({ id: 'E_DLTSW_WIQ_DN', from: 'DLT_SW_DN', to: 'WIQ_DN', lengthMeters: 310, maxSpeedMph: 25, isFlyover: true });
-
-  // Wire Northbound/Westbound CAW_UP & CAW_MID -> DLT_BYP_UP -> DLT_SW_UP -> WFE_UP (Bypasses WIQ completely!)
   edges.push({
     id: 'E_CAW_BYP_UP',
     from: 'CAW_UP',
@@ -498,37 +415,22 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     isFlyover: true,
   });
   edges.push({
-    id: 'E_BYP_DLTSW_UP',
+    id: 'E_BYP_WFE_UP',
     from: 'DLT_BYP_UP',
-    to: 'DLT_SW_UP',
-    lengthMeters: 260,
-    maxSpeedMph: 30,
-    isFlyover: true,
-  });
-  edges.push({
-    id: 'E_DLTSW_WFE_UP',
-    from: 'DLT_SW_UP',
     to: 'WFE_UP',
-    lengthMeters: 280,
+    lengthMeters: 520,
     maxSpeedMph: 30,
     isFlyover: true,
   });
 
-  // Wire Poplar <-> West India Quay via Delta East Dive-Under (Stratford/Poplar trains stop at WIQ in both directions)
-  edges.push({ id: 'E_POP_DLTSE_DN', from: 'POP_DN', to: 'DLT_SE_DN', lengthMeters: 300, maxSpeedMph: 25, isFlyover: true });
-  edges.push({ id: 'E_DLTSE_WIQ_DN', from: 'DLT_SE_DN', to: 'WIQ_DN', lengthMeters: 300, maxSpeedMph: 25, isFlyover: true });
-  edges.push({ id: 'E_WIQ_DLTSE_UP', from: 'WIQ_UP', to: 'DLT_SE_UP', lengthMeters: 300, maxSpeedMph: 25, isFlyover: true });
-  edges.push({ id: 'E_DLTSE_POP_UP', from: 'DLT_SE_UP', to: 'POP_UP', lengthMeters: 300, maxSpeedMph: 25, isFlyover: true });
-  addBiLink('DLT_SE_UP', 'DLT_SE_DN', 95, 18, true);
-
-  // Poplar East Reversing & Stabling Pocket (between Poplar & Blackwall)
+  // Poplar Center Turnback & Stabling Pocket (between Poplar & Blackwall at y = 840)
   addSpecialNode(
     'POP_REV',
     'Poplar East Turnback & Stabling Pocket',
     'POP',
     'siding',
-    888,
-    500,
+    1360,
+    840,
     'BI',
     'POP TURNBACK POCKET',
     3,
@@ -536,7 +438,6 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
   );
   addBiLink('POP_DN', 'POP_REV', 180, 20, true);
   addBiLink('POP_REV', 'POP_UP', 180, 20, true);
-  addBiLink('POP_REV', 'BLW_DN', 250, 25, true);
 
   // Canary Wharf Center Turnback & Stabling Road (P3/P4 Center Track between UP and DN)
   addSpecialNode(
@@ -544,31 +445,28 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Canary Wharf P3/P4 Center Turnback Road',
     'CAW',
     'siding',
-    705,
-    685,
+    1040,
+    1150,
     'BI',
     'CAW P3/P4 CENTER RD',
     3,
     '3'
   );
-  addBiLink('WIQ_DN', 'CAW_MID', 420, 25, true);
-  addBiLink('CAW_MID', 'WIQ_UP', 420, 25, true);
   addBiLink('CAW_DN', 'CAW_MID', 110, 20, true);
   addBiLink('CAW_MID', 'CAW_UP', 110, 20, true);
-  addBiLink('CAW_MID', 'HER_DN', 420, 25, true);
 
   // ============================================================================
-  // 3. POPLAR DEPOT (PDP) MULTI-ROAD STABLING & MAINTENANCE FAN
+  // 3. POPLAR DEPOT (PDP) CLEAN 3-ROAD HORIZONTAL STABLING FORK (ZERO SPIDERWEBS)
   // ============================================================================
   addSpecialNode(
     'PDP_THROAT',
     'Poplar Depot Reception & Wash Lead',
     'PDP',
     'junction',
-    855,
-    418,
+    1220,
+    610,
     'BI',
-    'PDP RECEPTION THROAT',
+    'PDP RECEPTION LEAD',
     3,
     'T'
   );
@@ -577,8 +475,8 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Poplar Depot Road 1 (West Stabling Berth)',
     'PDP',
     'depot',
-    1005,
-    315,
+    1520,
+    550,
     'BI',
     'PDP RD 1 (STABLING A)',
     3,
@@ -589,8 +487,8 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Poplar Depot Road 2 (Center Stabling Berth)',
     'PDP',
     'depot',
-    1005,
-    352,
+    1520,
+    610,
     'BI',
     'PDP RD 2 (STABLING B)',
     3,
@@ -601,37 +499,34 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Poplar Depot Road 3 (Lifting & Heavy Shop)',
     'PDP',
     'depot',
-    1005,
-    389,
+    1520,
+    670,
     'BI',
     'PDP RD 3 (WORKSHOP)',
     3,
     'R3'
   );
 
-  addBiLink('POP_UP', 'PDP_THROAT', 260, 15, true);
-  addBiLink('POP_DN', 'PDP_THROAT', 260, 15, true);
-  addBiLink('BLW_UP', 'PDP_THROAT', 310, 15, true);
-  addBiLink('PDP_THROAT', 'PDP_UP', 200, 15, false);
-  addBiLink('PDP_THROAT', 'PDP_DN', 200, 15, false);
+  // Clean orthogonal/45° depot tree: POP <-> PDP_THROAT <-> PDP <-> PDP_S1 / S2 / S3
+  addBiLink('POP_UP', 'PDP_THROAT', 240, 15, false);
+  addBiLink('POP_DN', 'PDP_THROAT', 240, 15, true);
+  addBiLink('PDP_THROAT', 'PDP_UP', 180, 15, false);
+  addBiLink('PDP_THROAT', 'PDP_DN', 180, 15, false);
   addBiLink('PDP_UP', 'PDP_S1', 160, 12, false);
   addBiLink('PDP_UP', 'PDP_S2', 160, 12, false);
-  addBiLink('PDP_DN', 'PDP_S2', 160, 12, false);
   addBiLink('PDP_DN', 'PDP_S3', 160, 12, false);
-  connectStations('PDP', 'POP', 450, 15);
-  connectStations('POP', 'PDP', 450, 15);
 
   // ============================================================================
-  // 4. STRATFORD INTERNATIONAL (STI) & STRATFORD REGIONAL (STR) OLYMPIC COMPLEX
+  // 4. STRATFORD INTL (STI) & STRATFORD REGIONAL (STR) ORTHOGONAL ARCH + NORTH SPINES
   // ============================================================================
-  // 4a. Stratford International Tail Buffer / Overrun Siding & Olympic Approach Scissor Throat
+  // 4a. Stratford International Tail Buffer Siding (Horizontal West of STI at y = 75)
   addSpecialNode(
     'STI_HSH',
     'Stratford International Olympic Tail Siding & Buffer',
     'STI',
     'siding',
-    830,
-    62,
+    1210,
+    75,
     'BI',
     'STI OLYMPIC SIDING',
     3,
@@ -640,88 +535,76 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
   addBiLink('STI_UP', 'STI_HSH', 130, 15, true);
   addBiLink('STI_DN', 'STI_HSH', 130, 15, true);
 
-  addSpecialNode(
-    'STI_XOVR',
-    'Stratford International Approach Scissor Throat (HS1 Box)',
-    'STI',
-    'junction',
-    1042,
-    62,
-    'BI',
-    'STI SCISSOR THROAT',
-    3,
-    'J'
-  );
-  addBiLink('STI_UP', 'STI_XOVR', 140, 25, false);
-  addBiLink('STI_DN', 'STI_XOVR', 140, 25, true);
+  // Vertical connection STI (1380, 75) <-> STR (1380, 185)
+  connectStations('STI', 'STR', 680, 40, false, false, 'OLYMPIC PARK CUTTING');
 
-  // 4b. Stratford Regional High-Level Terminal Bay Turnback (P4A/P4B for Bow/Poplar/Lewisham route)
+  // 4b. West Fork of Stratford Arch: STR (1380, 185) -> STR_BAY (1040, 185) -> North Spine (x = 1040)
   addSpecialNode(
     'STR_BAY',
     'Stratford High-Level Terminal Bays (P4A / P4B)',
     'STR',
     'siding',
-    740,
-    134,
+    1040,
+    185,
     'BI',
     'STR P4A/B BAY TURNBACK',
     3,
     '4A'
   );
-  addBiLink('STR_UP', 'STR_BAY', 140, 20, true);
-  addBiLink('STR_DN', 'STR_BAY', 140, 20, true);
-  addBiLink('STR_BAY', 'PML_DN', 420, 30, false);
-  addBiLink('PML_UP', 'STR_BAY', 420, 30, false);
+  addBiLink('STR_UP', 'STR_BAY', 220, 25, false);
+  addBiLink('STR_DN', 'STR_BAY', 220, 25, false);
+  addBiLink('STR_BAY', 'PML_DN', 380, 35, false);
+  addBiLink('PML_UP', 'STR_BAY', 380, 35, false);
 
-  // 4c. Stratford Market Junction & Crossover (splits Stratford Regional P16/P17 to Stratford High St vs Bow/PML link)
-  addSpecialNode(
-    'STR_MKT_JCT',
-    'Stratford Market Crossover & Lea Valley Junction',
-    'STR',
-    'junction',
-    985,
-    142,
-    'BI',
-    'STR MARKET X-OVER',
-    3,
-    'M'
-  );
-  addBiLink('STI_XOVR', 'STR_DN', 420, 35, false);
-  addBiLink('STR_UP', 'STI_XOVR', 420, 35, false);
-  connectStations('STI', 'STR', 680, 40, false, false, 'OLYMPIC PARK CUTTING');
-
-  addBiLink('STR_DN', 'STR_MKT_JCT', 220, 30, false);
-  addBiLink('STR_MKT_JCT', 'STR_UP', 220, 30, true);
-  addBiLink('STR_MKT_JCT', 'SHS_DN', 380, 35, false);
-  addBiLink('SHS_UP', 'STR_MKT_JCT', 380, 35, false);
-  connectStations('STR', 'SHS', 620, 40);
-
-  // 4d. Pudding Mill Lane Olympic Turnback Pocket (rebuilt 2014 twin-track viaduct + siding)
+  // 4c. Pudding Mill Lane Olympic Turnback Pocket (Left of PML at x = 890, y = 310)
   addSpecialNode(
     'PML_REV',
     'Pudding Mill Lane Olympic Turnback Pocket Siding',
     'PML',
     'siding',
-    642,
-    204,
+    890,
+    310,
     'BI',
     'PML OLYMPIC POCKET',
     3,
     '3'
   );
-  addBiLink('PML_DN', 'PML_REV', 150, 20, true);
-  addBiLink('PML_REV', 'PML_UP', 150, 20, true);
+  addBiLink('PML_UP', 'PML_REV', 150, 20, true);
+  addBiLink('PML_REV', 'PML_DN', 150, 20, true);
 
-  // North Branch (Stratford -> Pudding Mill Lane -> Bow Church -> All Saints -> Poplar)
-  connectStations('STR', 'PML', 750, 40);
+  // Connect North Spine stations cleanly down x = 1040
   connectStations('PML', 'BOW', 850, 40);
   connectStations('BOW', 'DEV', 750, 35);
   connectStations('DEV', 'LAN', 700, 35);
   connectStations('LAN', 'ALL', 650, 35);
   connectStations('ALL', 'POP', 650, 25);
 
+  // 4d. East Fork of Stratford Arch: STR (1380, 185) -> STR_MKT_JCT (1760, 185) -> Lea Valley Spine (x = 1760)
+  addSpecialNode(
+    'STR_MKT_JCT',
+    'Stratford Low-Level P16/P17 & Market Crossover',
+    'STR',
+    'junction',
+    1760,
+    185,
+    'BI',
+    'STR MARKET X-OVER',
+    3,
+    'M'
+  );
+  addBiLink('STR_DN', 'STR_MKT_JCT', 240, 35, false);
+  addBiLink('STR_MKT_JCT', 'STR_UP', 240, 35, false);
+  addBiLink('STR_MKT_JCT', 'SHS_DN', 380, 40, false);
+  addBiLink('SHS_UP', 'STR_MKT_JCT', 380, 40, false);
+
+  // Connect Lea Valley Spine stations cleanly down x = 1760 to Canning Town
+  connectStations('SHS', 'ABB', 750, 45);
+  connectStations('ABB', 'WHM', 850, 45);
+  connectStations('WHM', 'STL', 800, 40);
+  connectStations('STL', 'CNT', 850, 35);
+
   // ============================================================================
-  // 5. SOUTH BRANCH (WEST INDIA QUAY -> CANARY WHARF -> GREENWICH THAMES BORE -> LEWISHAM)
+  // 5. SOUTH SPINE (x = 1040: WIQ -> CAW -> GREENWICH THAMES BORE -> LEWISHAM)
   // ============================================================================
   connectStations('WIQ', 'CAW', 450, 25);
   connectStations('CAW', 'HER', 450, 30);
@@ -736,31 +619,26 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
   connectStations('ELV', 'LEW', 650, 30);
 
   // ============================================================================
-  // 6. CENTRAL TRUNK & STRATFORD INTL / LEA VALLEY -> CANNING TOWN
+  // 6. CENTRAL TRUNK (POP -> BLW -> EIR -> CNT)
   // ============================================================================
   connectStations('POP', 'BLW', 950, 40);
   connectStations('BLW', 'EIR', 850, 40);
   connectStations('EIR', 'CNT', 1050, 40, true);
 
-  connectStations('SHS', 'ABB', 750, 45);
-  connectStations('ABB', 'WHM', 850, 45);
-  connectStations('WHM', 'STL', 800, 40);
-  connectStations('STL', 'CNT', 850, 35);
-
   // ============================================================================
-  // 7. BECKTON BRANCH + EXPANDED MULTI-ROAD BECKTON DEPOT (NON-GEOGRAPHIC WRAP)
+  // 7. BECKTON LOOP & CLEAN 4-ROAD BECKTON DEPOT LADDER (ZERO SPIDERWEBS)
   // ============================================================================
   connectStations('CNT', 'RVC', 950, 40, true);
   connectStations('RVC', 'CUH', 800, 40);
 
-  // Custom House ExCeL Turnback Pocket Siding
+  // Custom House ExCeL Center Turnback Pocket Siding
   addSpecialNode(
     'CUH_SID',
     'Custom House ExCeL Turnback Siding',
     'CUH',
     'siding',
-    1555,
-    430,
+    2370,
+    700,
     'BI',
     'CUH EXCEL SIDING',
     3,
@@ -782,8 +660,8 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Beckton Terminus Reversing Siding',
     'BCK',
     'siding',
-    1475,
-    220,
+    2240,
+    380,
     'BI',
     'BCK TAIL SIDING',
     3,
@@ -792,38 +670,38 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
   addBiLink('BCK_UP', 'BCK_REV', 140, 15, true);
   addBiLink('BCK_DN', 'BCK_REV', 140, 15, true);
 
-  // Beckton Depot East & West Reception Ladders + 4 Stabling/Maintenance Roads
-  addSpecialNode(
-    'BDP_E_LEAD',
-    'Beckton Depot East Reception Ladder (to Gallions Reach)',
-    'BDP',
-    'junction',
-    1810,
-    155,
-    'BI',
-    'BDP EAST LADDER',
-    3,
-    'E'
-  );
+  // Beckton Depot East & West Vertical Ladders + 4 Parallel Horizontal Stabling Roads
   addSpecialNode(
     'BDP_W_LEAD',
     'Beckton Depot West Reception Ladder (to Beckton)',
     'BDP',
     'junction',
-    1630,
-    155,
+    2400,
+    215,
     'BI',
     'BDP WEST LADDER',
     3,
     'W'
   );
   addSpecialNode(
+    'BDP_E_LEAD',
+    'Beckton Depot East Reception Ladder (to Gallions Reach)',
+    'BDP',
+    'junction',
+    2800,
+    215,
+    'BI',
+    'BDP EAST LADDER',
+    3,
+    'E'
+  );
+  addSpecialNode(
     'BDP_R1',
     'Beckton Depot Road 1 — North Stabling Fan (3 Trains)',
     'BDP',
     'depot',
-    1530,
-    68,
+    2210,
+    115,
     'BI',
     'BDP RD 1 (NORTH STABLING)',
     3,
@@ -834,8 +712,8 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Beckton Depot Road 2 — Peak Readiness Siding',
     'BDP',
     'depot',
-    1530,
-    98,
+    2210,
+    165,
     'BI',
     'BDP RD 2 (PEAK READY)',
     3,
@@ -846,8 +724,8 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Beckton Depot Road 3 — Heavy Overhaul & Wheel Lathe',
     'BDP',
     'depot',
-    1530,
-    128,
+    2210,
+    215,
     'BI',
     'BDP RD 3 (WHEEL LATHE)',
     3,
@@ -858,34 +736,27 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
     'Beckton Depot Road 4 — East Reversing & Wash Loop',
     'BDP',
     'depot',
-    1895,
-    98,
+    2965,
+    215,
     'BI',
     'BDP RD 4 (WASH & REV LOOP)',
     3,
     'R4'
   );
 
-  // Connect Gallions Reach & Beckton to Beckton Depot Ladders and 4 Stabling Roads
-  addBiLink('GAL_UP', 'BDP_E_LEAD', 280, 15, true);
-  addBiLink('GAL_DN', 'BDP_E_LEAD', 280, 15, true);
-  addBiLink('BCK_UP', 'BDP_W_LEAD', 280, 15, true);
-  addBiLink('BCK_DN', 'BDP_W_LEAD', 280, 15, true);
-  addBiLink('BDP_E_LEAD', 'BDP_UP', 200, 15, false);
-  addBiLink('BDP_E_LEAD', 'BDP_DN', 200, 15, false);
-  addBiLink('BDP_W_LEAD', 'BDP_UP', 200, 15, false);
-  addBiLink('BDP_W_LEAD', 'BDP_DN', 200, 15, false);
-  addBiLink('BDP_E_LEAD', 'BDP_R4', 190, 15, false);
-  addBiLink('BDP_UP', 'BDP_R4', 210, 15, false);
-  addBiLink('BDP_UP', 'BDP_R1', 210, 12, false);
-  addBiLink('BDP_UP', 'BDP_R2', 210, 12, false);
-  addBiLink('BDP_DN', 'BDP_R2', 210, 12, false);
-  addBiLink('BDP_DN', 'BDP_R3', 210, 12, false);
-  addBiLink('BDP_W_LEAD', 'BDP_R3', 190, 12, false);
-
-  connectStations('GAL', 'BDP', 520, 15);
-  connectStations('BDP', 'GAL', 520, 15);
-  connectStations('BDP', 'BCK', 520, 15);
+  // Clean orthogonal/45° depot tree (Zero crossing lines!)
+  addBiLink('BCK_UP', 'BDP_W_LEAD', 240, 15, false);
+  addBiLink('BCK_DN', 'BDP_W_LEAD', 240, 15, true);
+  addBiLink('GAL_UP', 'BDP_E_LEAD', 240, 15, false);
+  addBiLink('GAL_DN', 'BDP_E_LEAD', 240, 15, true);
+  addBiLink('BDP_W_LEAD', 'BDP_UP', 180, 15, false);
+  addBiLink('BDP_W_LEAD', 'BDP_DN', 180, 15, false);
+  addBiLink('BDP_E_LEAD', 'BDP_UP', 180, 15, false);
+  addBiLink('BDP_E_LEAD', 'BDP_DN', 180, 15, false);
+  addBiLink('BDP_W_LEAD', 'BDP_R1', 210, 12, false);
+  addBiLink('BDP_W_LEAD', 'BDP_R2', 210, 12, false);
+  addBiLink('BDP_W_LEAD', 'BDP_R3', 210, 12, false);
+  addBiLink('BDP_E_LEAD', 'BDP_R4', 210, 15, false);
 
   // ============================================================================
   // 8. WOOLWICH ARSENAL BRANCH (Diving UNDER the Labelled River Thames from KGV to WOO!)
@@ -896,14 +767,13 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
   connectStations('LCA', 'KGV', 1050, 45);
   connectStations('KGV', 'WOO', 1550, 50, false, true, 'WOOLWICH THAMES BORE (50 MPH · SOP-UG1)');
 
-  // Woolwich Arsenal Sub-Surface Tail Buffer & Overrun Siding (South of the River Thames)
   addSpecialNode(
     'WOO_HSH',
     'Woolwich Arsenal Sub-Surface Tail Siding & Buffers',
     'WOO',
     'siding',
-    1962,
-    795,
+    2935,
+    1260,
     'BI',
     'WOO TAIL SIDING',
     3,

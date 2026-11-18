@@ -1,5 +1,5 @@
 import { DLRSimulation } from './simulation';
-import { Station, TrackNode, Train } from './types';
+import { Station, TrackEdge, TrackNode, Train } from './types';
 import { STATION_MAP } from './dlrData';
 
 export type SectorId = 'CORE' | 'WEST' | 'SOUTH' | 'EAST' | 'NORTH' | 'FULL' | 'WOOLWICH';
@@ -12,7 +12,7 @@ export class SchematicCanvas {
   // Camera Pan & Zoom state
   public camX: number = -60;
   public camY: number = -120;
-  public zoom: number = 0.82;
+  public zoom: number = 0.72;
   private isDragging: boolean = false;
   private dragStartX: number = 0;
   private dragStartY: number = 0;
@@ -80,11 +80,11 @@ export class SchematicCanvas {
     return { cx, cy, w, h, openW, openH };
   }
 
-  private fitWorldBounds(minX: number, minY: number, maxX: number, maxY: number, maxZoom = 1.2) {
+  private fitWorldBounds(minX: number, minY: number, maxX: number, maxY: number, maxZoom = 1.15) {
     const { cx, cy, openW, openH } = this.getViewportBounds();
     const worldW = Math.max(100, maxX - minX);
     const worldH = Math.max(100, maxY - minY);
-    this.zoom = Math.max(0.32, Math.min(maxZoom, Math.min(openW / worldW, openH / worldH) * 0.94));
+    this.zoom = Math.max(0.24, Math.min(maxZoom, Math.min(openW / worldW, openH / worldH) * 0.94));
     const worldCenterX = (minX + maxX) * 0.5;
     const worldCenterY = (minY + maxY) * 0.5;
     this.camX = cx - worldCenterX * this.zoom;
@@ -93,30 +93,30 @@ export class SchematicCanvas {
 
   public jumpToSector(sector: SectorId) {
     if (sector === 'FULL') {
-      // Fit entire 7-branch network from Bank Headshunt (x=30) to Woolwich/Cyprus (x=2065) and STI (y=0) to Lewisham (y=1275)
-      this.fitWorldBounds(30, 0, 2065, 1275, 0.95);
+      // Fit entire 7-branch 3180x2120 schematic network
+      this.fitWorldBounds(20, -10, 3100, 2110, 0.92);
     } else if (sector === 'CORE') {
-      // Westferry - Poplar - West India Quay Asymmetric 4-Track Delta (with CAW->WFE Bypass), Canary Wharf P3/P4 & Poplar Depot
-      this.fitWorldBounds(495, 270, 1095, 735, 1.08);
+      // Westferry - Poplar - West India Quay 4-Track Bypass Delta, Canary Wharf P3/P4 & 3-Road Poplar Depot
+      this.fitWorldBounds(730, 475, 1650, 1220, 1.02);
     } else if (sector === 'WEST') {
       // Bank Headshunt, Tower Gateway 2C Throat, Royal Mint St Junction, Shadwell, Limehouse, Westferry
-      this.fitWorldBounds(35, 355, 610, 635, 1.18);
+      this.fitWorldBounds(25, 640, 895, 1020, 1.12);
     } else if (sector === 'SOUTH') {
       // West India Quay & Canary Wharf down across Greenwich Thames Bore to Cutty Sark & Lewisham
-      this.fitWorldBounds(520, 595, 890, 1280, 0.96);
+      this.fitWorldBounds(760, 1000, 1280, 2110, 0.92);
     } else if (sector === 'EAST') {
-      // Canning Town, ExCeL, Wrapped Beckton & Multi-Road Beckton Depot, City Airport, and Woolwich Thames Bore
-      this.fitWorldBounds(1180, 25, 2065, 845, 0.92);
+      // Canning Town, ExCeL, Royal Docks Loop, Beckton & 4-Road Beckton Depot
+      this.fitWorldBounds(1840, 30, 3100, 890, 0.88);
     } else if (sector === 'NORTH') {
-      // Stratford International (STI) & Stratford Regional (STR) Olympic Complex, Pudding Mill Lane, Stratford High St & Poplar Depot
-      this.fitWorldBounds(590, 0, 1285, 455, 1.05);
+      // Stratford International (STI) & Stratford Regional (STR) Olympic Arch, North Spine, Lea Valley Spine & Poplar Depot
+      this.fitWorldBounds(820, -15, 1890, 775, 0.94);
     } else if (sector === 'WOOLWICH') {
-      // London City Airport, King George V, River Thames Sub-Aqueous Bore & Woolwich Arsenal Sub-Surface Box
-      this.fitWorldBounds(1245, 515, 2055, 850, 1.12);
+      // Canning Town, London City Airport, King George V, River Thames Sub-Aqueous Bore & Woolwich Arsenal Sub-Surface Box
+      this.fitWorldBounds(1840, 800, 3060, 1340, 1.02);
     }
   }
 
-  public focusCoordinates(worldX: number, worldY: number, targetZoom = 1.12) {
+  public focusCoordinates(worldX: number, worldY: number, targetZoom = 1.05) {
     const { cx, cy } = this.getViewportBounds();
     this.zoom = targetZoom;
     this.camX = cx - worldX * this.zoom;
@@ -126,7 +126,7 @@ export class SchematicCanvas {
   public zoomBy(factor: number) {
     const { cx, cy } = this.getViewportBounds();
     const worldBefore = this.screenToWorld(cx, cy);
-    this.zoom = Math.max(0.32, Math.min(2.4, this.zoom * factor));
+    this.zoom = Math.max(0.22, Math.min(2.4, this.zoom * factor));
     this.camX = cx - worldBefore.x * this.zoom;
     this.camY = cy - worldBefore.y * this.zoom;
   }
@@ -141,6 +141,80 @@ export class SchematicCanvas {
       x: (sx - this.camX) / this.zoom,
       y: (sy - this.camY) / this.zoom,
     };
+  }
+
+  // Compute a crisp Beck/IECC 0° / 45° / 90° chamfered polyline between two nodes (eliminating arbitrary diagonal spiderwebs!)
+  public getEdgePolyline(n1: TrackNode, n2: TrackNode, edge?: TrackEdge): { x: number; y: number }[] {
+    const x1 = n1.x;
+    const y1 = n1.y;
+    const x2 = n2.x;
+    const y2 = n2.y;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+
+    // Pure horizontal, pure vertical, short station crossover, or already ~45°
+    if (adx < 6 || ady < 6 || Math.abs(adx - ady) < 8 || (edge?.isCrossover && adx + ady < 90)) {
+      return [
+        { x: x1, y: y1 },
+        { x: x2, y: y2 },
+      ];
+    }
+
+    // Symmetric 45° chamfered polyline: straight -> 45° diagonal -> straight
+    if (adx > ady) {
+      const straight = adx - ady;
+      const p1 = { x: x1 + Math.sign(dx) * (straight * 0.5), y: y1 };
+      const p2 = { x: x2 - Math.sign(dx) * (straight * 0.5), y: y2 };
+      return [{ x: x1, y: y1 }, p1, p2, { x: x2, y: y2 }];
+    } else {
+      const straight = ady - adx;
+      const p1 = { x: x1, y: y1 + Math.sign(dy) * (straight * 0.5) };
+      const p2 = { x: x2, y: y2 - Math.sign(dy) * (straight * 0.5) };
+      return [{ x: x1, y: y1 }, p1, p2, { x: x2, y: y2 }];
+    }
+  }
+
+  private interpolatePolyline(
+    pts: { x: number; y: number }[],
+    progress: number
+  ): { x: number; y: number; angle: number } {
+    if (pts.length === 0) return { x: 0, y: 0, angle: 0 };
+    if (pts.length === 1) return { x: pts[0].x, y: pts[0].y, angle: 0 };
+
+    const t = Math.max(0, Math.min(1, progress));
+    let totalLen = 0;
+    const segLens: number[] = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const len = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
+      segLens.push(len);
+      totalLen += len;
+    }
+
+    if (totalLen <= 0.001) {
+      return { x: pts[0].x, y: pts[0].y, angle: 0 };
+    }
+
+    const targetDist = t * totalLen;
+    let accum = 0;
+    for (let i = 0; i < segLens.length; i++) {
+      const sl = segLens[i];
+      if (accum + sl >= targetDist || i === segLens.length - 1) {
+        const localT = sl > 0.001 ? (targetDist - accum) / sl : 0;
+        const pA = pts[i];
+        const pB = pts[i + 1];
+        return {
+          x: pA.x + (pB.x - pA.x) * localT,
+          y: pA.y + (pB.y - pA.y) * localT,
+          angle: Math.atan2(pB.y - pA.y, pB.x - pA.x),
+        };
+      }
+      accum += sl;
+    }
+
+    const last = pts[pts.length - 1];
+    return { x: last.x, y: last.y, angle: 0 };
   }
 
   private setupListeners() {
@@ -213,7 +287,7 @@ export class SchematicCanvas {
       // 3. Check special road / junction berth hover (e.g. DLT_BYP_UP, STI_HSH, STR_BAY, BDP_R1..4)
       for (const node of this.sim.nodes) {
         if (!node.roadLabel) continue;
-        if (Math.hypot(world.x - node.x, world.y - node.y) < 20) {
+        if (Math.hypot(world.x - node.x, world.y - node.y) < 22) {
           this.hoveredStation = null;
           this.canvas.style.cursor = 'pointer';
           const extraNote =
@@ -343,7 +417,6 @@ export class SchematicCanvas {
       'wheel',
       (e) => {
         e.preventDefault();
-        // Support two-finger horizontal/diagonal trackpad pan when not pinching
         if (!e.ctrlKey && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.4 && Math.abs(e.deltaX) > 2) {
           this.camX -= e.deltaX;
           this.camY -= e.deltaY;
@@ -356,7 +429,7 @@ export class SchematicCanvas {
         const worldBefore = this.screenToWorld(sx, sy);
 
         const factor = e.deltaY < 0 ? 1.11 : 0.9;
-        this.zoom = Math.max(0.35, Math.min(2.4, this.zoom * factor));
+        this.zoom = Math.max(0.22, Math.min(2.4, this.zoom * factor));
 
         this.camX = sx - worldBefore.x * this.zoom;
         this.camY = sy - worldBefore.y * this.zoom;
@@ -373,14 +446,13 @@ export class SchematicCanvas {
   public getTrainWorldCoords(t: Train): { x: number; y: number; angle: number } {
     const n1 = this.sim.nodeMap[t.currentNodeId];
     const n2 = t.nextNodeId ? this.sim.nodeMap[t.nextNodeId] : null;
-    if (!n1) return { x: 500, y: 500, angle: 0 };
+    if (!n1) return { x: 1040, y: 840, angle: 0 };
     if (!n2 || t.edgeProgress <= 0.01) {
       return { x: n1.x, y: n1.y, angle: 0 };
     }
-    const x = n1.x + (n2.x - n1.x) * t.edgeProgress;
-    const y = n1.y + (n2.y - n1.y) * t.edgeProgress;
-    const angle = Math.atan2(n2.y - n1.y, n2.x - n1.x);
-    return { x, y, angle };
+    const edge = t.currentEdgeId ? this.sim.edgeMap[t.currentEdgeId] : undefined;
+    const pts = this.getEdgePolyline(n1, n2, edge);
+    return this.interpolatePolyline(pts, t.edgeProgress);
   }
 
   public render() {
@@ -401,7 +473,7 @@ export class SchematicCanvas {
     // 1. Draw River Thames schematic ribbon & Engineering/SOP Enclosure Boxes
     this.drawThamesAndZones();
 
-    // 2. Draw all Track Edges (plain line, flyovers, WIQ bypass, tunnels, crossovers)
+    // 2. Draw all Track Edges (0° / 45° / 90° IECC polylines, WIQ bypass, tunnels, crossovers)
     this.drawTracks();
 
     // 3. Draw CBTC Moving-Block Braking Footprints (when toggled ON)
@@ -467,8 +539,8 @@ export class SchematicCanvas {
 
   private drawGrid(w: number, h: number) {
     const ctx = this.ctx;
-    const step = 48 * this.zoom;
-    if (step < 16) return;
+    const step = 56 * this.zoom;
+    if (step < 14) return;
 
     ctx.strokeStyle = 'rgba(0, 164, 167, 0.045)';
     ctx.lineWidth = 1;
@@ -491,33 +563,30 @@ export class SchematicCanvas {
     const ctx = this.ctx;
 
     ctx.save();
-    // Stylized River Thames Ribbon:
-    // - Crosses South Branch between Island Gardens (y=945) and Cutty Sark (y=1030) at y=987
-    // - Bends up to y=685 in the East Sector, passing directly between King George V (y=575, North Bank)
-    //   and Woolwich Arsenal (y=795, UNDER/South of the labelled River Thames!)
+    // Stylized River Thames Ribbon (Orthogonal + 45° Chamfer):
+    // - Crosses South Spine between Island Gardens (y=1585) and Cutty Sark (y=1715) at y=1650
+    // - Rises at 45° to y=1120 in the East Sector, passing directly between King George V (y=980, North Bank)
+    //   and Woolwich Arsenal (y=1260, UNDER/South of the labelled River Thames!)
     const traceThamesPath = () => {
       ctx.beginPath();
-      ctx.moveTo(120, 987);
-      ctx.lineTo(830, 987);
-      ctx.lineTo(1185, 685);
-      ctx.lineTo(2065, 685);
+      ctx.moveTo(200, 1650);
+      ctx.lineTo(1320, 1650);
+      ctx.lineTo(1850, 1120);
+      ctx.lineTo(3120, 1120);
     };
 
-    // Outer river bank glow
     ctx.strokeStyle = 'rgba(56, 189, 248, 0.24)';
-    ctx.lineWidth = 42;
+    ctx.lineWidth = 46;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     traceThamesPath();
     ctx.stroke();
 
-    // Inner deep water channel
-    ctx.strokeStyle = 'rgba(8, 47, 73, 0.85)';
-    ctx.lineWidth = 34;
+    ctx.strokeStyle = 'rgba(8, 47, 73, 0.86)';
+    ctx.lineWidth = 36;
     traceThamesPath();
     ctx.stroke();
 
-    // Centerline water ripple dash
     ctx.strokeStyle = 'rgba(34, 211, 238, 0.18)';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([12, 10]);
@@ -525,11 +594,10 @@ export class SchematicCanvas {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // River Thames Labels (Greenwich Reach & Woolwich Reach)
     ctx.fillStyle = '#38BDF8';
-    ctx.font = '800 11.5px "JetBrains Mono", monospace';
-    ctx.fillText('🌊 RIVER THAMES — GREENWICH SUB-AQUEOUS BORE (SOP-UG1)', 215, 991);
-    ctx.fillText('🌊 RIVER THAMES — WOOLWICH SUB-AQUEOUS BORE (50 MPH · SOP-UG1)', 1255, 689);
+    ctx.font = '800 12px "JetBrains Mono", monospace';
+    ctx.fillText('🌊 RIVER THAMES — GREENWICH SUB-AQUEOUS BORE (SOP-UG1)', 340, 1654);
+    ctx.fillText('🌊 RIVER THAMES — WOOLWICH SUB-AQUEOUS BORE (50 MPH · SOP-UG1)', 1960, 1124);
 
     // Helper for Engineering / Depot / SOP Enclosure Boxes
     const drawEnclosureBox = (
@@ -554,22 +622,22 @@ export class SchematicCanvas {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.font = '800 10.5px "JetBrains Mono", monospace';
+      ctx.font = '800 11px "JetBrains Mono", monospace';
       ctx.fillStyle = titleColor;
-      ctx.fillText(title, x + 10, y + 15);
+      ctx.fillText(title, x + 12, y + 17);
 
-      ctx.font = '600 9.2px "JetBrains Mono", monospace';
+      ctx.font = '600 9.5px "JetBrains Mono", monospace';
       ctx.fillStyle = '#94A3B8';
-      ctx.fillText(subtitle, x + 10, y + 28);
+      ctx.fillText(subtitle, x + 12, y + 31);
       ctx.restore();
     };
 
     // 1. Bank Deep-Tube Bore & Tail Headshunt SOP Box
     drawEnclosureBox(
-      42,
-      368,
-      268,
-      105,
+      32,
+      650,
+      290,
+      125,
       'BANK DEEP-TUBE COMPLEX (SOP-UG1 / UG2)',
       '1:20 Dive · 1 Train/Bore · Single Tail Headshunt (BNK_HSH)',
       'rgba(56, 189, 248, 0.38)',
@@ -579,10 +647,10 @@ export class SchematicCanvas {
 
     // 2. Tower Gateway Viaduct & Minories 2-Car Lockout Box
     drawEnclosureBox(
-      95,
-      532,
-      215,
-      86,
+      115,
+      892,
+      290,
+      105,
       'TOWER GATEWAY (SOP-TWG: 2-CAR 60m MAX)',
       'Spanish-Solution Dual Platforms · 3-Car Sets Locked Out',
       'rgba(245, 158, 11, 0.45)',
@@ -590,53 +658,53 @@ export class SchematicCanvas {
       '#FBBF24'
     );
 
-    // 3. Expanded Westferry – Poplar – West India Quay Flying Delta & CAW->WFE Westbound Bypass Box
+    // 3. Clean Geometric Westferry – Poplar – West India Quay Delta & CAW->WFE Bypass Box
     drawEnclosureBox(
-      508,
-      444,
-      415,
-      204,
+      750,
+      770,
+      685,
+      315,
       'POPLAR – WESTFERRY – WIQ DELTA & BYPASS (SOP-WIQ)',
-      'Westbound CAW→WFE Track Bypasses WIQ (No Platform) · 3 Flying Chords',
+      'Westbound CAW→WFE Track Bypasses WIQ (No Platform) · 3 Grade-Separated Chords · POP Turnback Pocket',
       'rgba(0, 164, 167, 0.42)',
       'rgba(12, 24, 34, 0.42)',
       '#22D3EE'
     );
 
-    // 4. Stratford International (STI) & Stratford Regional (STR) Olympic Megahub Box
+    // 4. Stratford International (STI) & Stratford Regional (STR) Orthogonal Olympic Arch Box
     drawEnclosureBox(
-      605,
-      -4,
-      515,
-      178,
+      920,
+      -5,
+      940,
+      235,
       'STRATFORD INTL (STI) & STRATFORD REGIONAL (STR) OLYMPIC COMPLEX',
-      'STI Tail Siding & HS1 Scissor · STR P16/P17 Through + P4A/B Bays · Market X-Over',
+      'STI Olympic Tail Siding · STR Central Hub · West Fork to P4A/B Bays (Bow/Poplar) · East Fork to Market X-Over (Lea Valley)',
       'rgba(16, 185, 129, 0.42)',
       'rgba(12, 26, 24, 0.42)',
       '#34D399'
     );
 
-    // 5. Expanded Poplar Depot & Workshop Multi-Road Fan
+    // 5. Clean 3-Road Horizontal Poplar Depot & Worksite Fork
     drawEnclosureBox(
-      822,
-      252,
-      255,
-      184,
+      1150,
+      480,
+      485,
+      230,
       'POPLAR DEPOT & WORKSITE FAN (PDP)',
-      '3 Stabling & Lifting Roads (PDP_S1–S3) + Reception Throat',
+      '3 Parallel Horizontal Stabling & Lifting Roads (PDP_S1–S3) + Vertical Reception Lead',
       'rgba(168, 85, 247, 0.4)',
       'rgba(23, 15, 36, 0.4)',
       '#C084FC'
     );
 
-    // 6. Expanded Beckton Depot & Terminus Multi-Road Complex (Wrapped Upper-East)
+    // 6. Clean 4-Road Horizontal Beckton Depot & Terminus Complex
     drawEnclosureBox(
-      1435,
-      12,
-      535,
-      240,
+      2095,
+      45,
+      985,
+      385,
       'BECKTON DEPOT (BDP) & GALLIONS REACH COMPLEX',
-      '4 Stabling/Lathe/Wash Roads (BDP_R1–R4) · East & West Ladders · BCK Tail Siding',
+      '4 Parallel Stabling/Lathe/Wash Roads (BDP_R1–R4) · Vertical East & West Ladders · BCK Tail Siding',
       'rgba(16, 185, 129, 0.4)',
       'rgba(12, 26, 24, 0.4)',
       '#34D399'
@@ -644,10 +712,10 @@ export class SchematicCanvas {
 
     // 7. Woolwich Arsenal Sub-Surface Box (Under / South of the Labelled River Thames!)
     drawEnclosureBox(
-      1695,
-      728,
-      340,
-      108,
+      2660,
+      1185,
+      365,
+      125,
       'WOOLWICH ARSENAL SUB-SURFACE BOX (SOP-UG1 · SOUTH BANK)',
       '50 mph Under-River Thames Bore from KGV · P3/P4 Island Box · WOO Tail Siding',
       'rgba(56, 189, 248, 0.42)',
@@ -657,11 +725,11 @@ export class SchematicCanvas {
 
     // Sector header watermarks on schematic
     ctx.fillStyle = 'rgba(148, 163, 184, 0.14)';
-    ctx.font = '800 16px "JetBrains Mono", monospace';
-    ctx.fillText('CITY & ROYAL MINT ST WEST THROAT', 55, 350);
-    ctx.fillText('ISLE OF DOGS & LEWISHAM SOUTH', 440, 1235);
-    ctx.fillText('ROYAL DOCKS, EXCEL & BECKTON LOOP', 1340, 382);
-    ctx.fillText('LONDON CITY AIRPORT & NORTH WOOLWICH', 1345, 532);
+    ctx.font = '800 17px "JetBrains Mono", monospace';
+    ctx.fillText('CITY & ROYAL MINT ST WEST THROAT', 45, 625);
+    ctx.fillText('ISLE OF DOGS & LEWISHAM SOUTH', 720, 2055);
+    ctx.fillText('ROYAL DOCKS, EXCEL & BECKTON LOOP', 2060, 640);
+    ctx.fillText('LONDON CITY AIRPORT & NORTH WOOLWICH', 2060, 925);
     ctx.restore();
   }
 
@@ -676,8 +744,7 @@ export class SchematicCanvas {
     const wiqBypassEdgeIds = new Set([
       'E_CAW_BYP_UP',
       'E_CAWMID_BYP_UP',
-      'E_BYP_DLTSW_UP',
-      'E_DLTSW_WFE_UP',
+      'E_BYP_WFE_UP',
     ]);
 
     for (const edge of this.sim.edges) {
@@ -690,69 +757,110 @@ export class SchematicCanvas {
       const isBlocked = n1.trackBlocked || n2.trackBlocked;
       const isWiqBypass = wiqBypassEdgeIds.has(edge.id);
 
+      // For station UP<->DN turnback crossovers, draw a clean 45° IECC scissor symbol instead of a perpendicular bar
+      if (
+        edge.isCrossover &&
+        n1.stationId &&
+        n1.stationId === n2.stationId &&
+        n1.type === 'platform' &&
+        n2.type === 'platform'
+      ) {
+        // Only draw once per station pair (when from = _DN) unless manually locked
+        if (edge.from.endsWith('_UP') && !isManualRoute) continue;
+        const cx = (n1.x + n2.x) * 0.5;
+        const cy = (n1.y + n2.y) * 0.5;
+        const isVert = Math.abs(n1.x - n2.x) > Math.abs(n1.y - n2.y);
+        const dx = isVert ? Math.abs(n2.x - n1.x) * 0.5 : 12;
+        const dy = isVert ? 12 : Math.abs(n2.y - n1.y) * 0.5;
+
+        ctx.save();
+        ctx.strokeStyle = isManualRoute ? '#38BDF8' : 'rgba(148, 163, 184, 0.35)';
+        ctx.lineWidth = isManualRoute ? 2.6 : 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(cx - dx, cy - dy);
+        ctx.lineTo(cx + dx, cy + dy);
+        ctx.moveTo(cx - dx, cy + dy);
+        ctx.lineTo(cx + dx, cy - dy);
+        ctx.stroke();
+        ctx.restore();
+        continue;
+      }
+
+      const pts = this.getEdgePolyline(n1, n2, edge);
       ctx.beginPath();
-      ctx.moveTo(n1.x, n1.y);
-      ctx.lineTo(n2.x, n2.y);
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
 
       if (edge.isCrossover) {
-        ctx.strokeStyle = isManualRoute ? '#38BDF8' : 'rgba(148, 163, 184, 0.32)';
-        ctx.lineWidth = isManualRoute ? 3 : 1.7;
+        ctx.strokeStyle = isManualRoute ? '#38BDF8' : 'rgba(148, 163, 184, 0.34)';
+        ctx.lineWidth = isManualRoute ? 3 : 1.8;
         ctx.setLineDash([4, 4]);
       } else {
-        ctx.setLineDash(edge.isTunnel ? [7, 5] : isWiqBypass ? [9, 3] : []);
+        ctx.setLineDash(edge.isTunnel ? [8, 5] : isWiqBypass ? [9, 3] : []);
         if (isBlocked) {
           ctx.strokeStyle = '#EF4444';
           ctx.lineWidth = 4;
         } else if (isOccupied) {
-          ctx.strokeStyle = '#EF4444'; // SimSig Red Track Circuit Occupied
+          ctx.strokeStyle = '#EF4444';
           ctx.lineWidth = 4.2;
         } else if (isManualRoute) {
-          ctx.strokeStyle = '#F8FAFC'; // SimSig White Locked Route
+          ctx.strokeStyle = '#F8FAFC';
           ctx.lineWidth = 4.0;
         } else if (isWiqBypass) {
-          ctx.strokeStyle = '#0891B2'; // Highlighted Westbound CAW->WFE Bypass Chord (No WIQ Platform)
-          ctx.lineWidth = 3.6;
+          ctx.strokeStyle = '#0891B2';
+          ctx.lineWidth = 3.8;
         } else if (edge.isFlyover) {
-          ctx.strokeStyle = '#2E4760'; // Grade-separated Delta / Flyover viaduct
+          ctx.strokeStyle = '#2E4760';
           ctx.lineWidth = 3.5;
         } else {
-          ctx.strokeStyle = '#263547'; // Normal Unoccupied Steel Track
+          ctx.strokeStyle = '#263547';
           ctx.lineWidth = 3.2;
         }
       }
 
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Pill-backed inline edge label for tunnels/bypass/chords (never struck through by tracks)
+      // Pill-backed inline edge label for tunnels/bypass/chords
       if (edge.edgeLabel) {
-        let mx = (n1.x + n2.x) / 2;
-        let my = (n1.y + n2.y) / 2 - 12;
+        const mid = this.interpolatePolyline(pts, 0.5);
+        let mx = mid.x;
+        let my = mid.y - 14;
 
-        // Fine-tune offsets for specific diagonal/vertical bores so they sit cleanly in open space
         if (edge.id === 'E_KGV_WOO_DN') {
-          mx += 95;
-          my -= 8;
+          mx += 125;
+          my -= 4;
         } else if (edge.id === 'E_ISG_CUT_DN') {
-          mx += 118;
-          my += 12;
+          mx += 130;
+          my += 14;
         } else if (edge.id === 'E_CAW_BYP_UP') {
-          mx -= 52;
-          my += 16;
+          mx -= 65;
+          my += 20;
+        } else if (edge.id === 'E_WFE_WIQ_DN') {
+          mx -= 55;
+          my -= 6;
+        } else if (edge.id === 'E_STI_STR_DN') {
+          mx += 95;
+          my += 12;
         } else if (edge.id === 'E_BNK_RMJ_DN') {
-          my -= 10;
-        } else if (edge.id === 'E_TWG_RMJ_DN') {
-          my += 24;
+          my -= 12;
+        } else if (edge.id === 'E_TWG_THROAT_RMJ_DN') {
+          my += 28;
         }
 
         ctx.save();
-        ctx.font = '700 8.5px "JetBrains Mono", monospace';
-        const tw = ctx.measureText(edge.edgeLabel).width + 10;
-        ctx.fillStyle = 'rgba(7, 11, 16, 0.88)';
-        ctx.strokeStyle = isWiqBypass ? 'rgba(34, 211, 238, 0.45)' : 'rgba(148, 163, 184, 0.28)';
+        ctx.font = '700 8.8px "JetBrains Mono", monospace';
+        const tw = ctx.measureText(edge.edgeLabel).width + 12;
+        ctx.fillStyle = 'rgba(7, 11, 16, 0.9)';
+        ctx.strokeStyle = isWiqBypass ? 'rgba(34, 211, 238, 0.45)' : 'rgba(148, 163, 184, 0.3)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect(mx - tw / 2, my - 7, tw, 14, 3);
+        ctx.roundRect(mx - tw / 2, my - 7.5, tw, 15, 3);
         ctx.fill();
         ctx.stroke();
 
@@ -773,19 +881,21 @@ export class SchematicCanvas {
       const n2 = t.nextNodeId ? this.sim.nodeMap[t.nextNodeId] : null;
       if (!n1 || !n2) continue;
 
-      const startX = n1.x + (n2.x - n1.x) * t.edgeProgress;
-      const startY = n1.y + (n2.y - n1.y) * t.edgeProgress;
-      const endProg = Math.min(1.0, t.edgeProgress + 0.38);
-      const endX = n1.x + (n2.x - n1.x) * endProg;
-      const endY = n1.y + (n2.y - n1.y) * endProg;
+      const edge = t.currentEdgeId ? this.sim.edgeMap[t.currentEdgeId] : undefined;
+      const pts = this.getEdgePolyline(n1, n2, edge);
+      const pStart = this.interpolatePolyline(pts, t.edgeProgress);
+      const pMid = this.interpolatePolyline(pts, Math.min(1.0, t.edgeProgress + 0.19));
+      const pEnd = this.interpolatePolyline(pts, Math.min(1.0, t.edgeProgress + 0.38));
 
       ctx.save();
       ctx.strokeStyle = t.psaMode ? 'rgba(245, 158, 11, 0.55)' : 'rgba(16, 185, 129, 0.48)';
       ctx.lineWidth = 9;
       ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
+      ctx.moveTo(pStart.x, pStart.y);
+      ctx.lineTo(pMid.x, pMid.y);
+      ctx.lineTo(pEnd.x, pEnd.y);
       ctx.stroke();
       ctx.restore();
     }
@@ -802,18 +912,17 @@ export class SchematicCanvas {
         ctx.strokeStyle = node.type === 'depot' ? '#A855F7' : '#22D3EE';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.roundRect(node.x - 16, node.y - 6, 32, 12, 2);
+        ctx.roundRect(node.x - 18, node.y - 6, 36, 12, 2);
         ctx.fill();
         ctx.stroke();
         ctx.restore();
       } else if (node.id === 'DLT_BYP_UP') {
-        // Highlighted Westbound Bypass Junction Marker
         ctx.save();
         ctx.fillStyle = '#083344';
         ctx.strokeStyle = '#22D3EE';
         ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.roundRect(node.x - 12, node.y - 6, 24, 12, 3);
+        ctx.roundRect(node.x - 14, node.y - 6, 28, 12, 3);
         ctx.fill();
         ctx.stroke();
         ctx.restore();
@@ -849,31 +958,25 @@ export class SchematicCanvas {
     for (const node of this.sim.nodes) {
       if (!node.roadLabel) continue;
       ctx.save();
-      ctx.font = '700 8.8px "JetBrains Mono", monospace';
-      const tw = ctx.measureText(node.roadLabel).width + 10;
+      ctx.font = '700 9px "JetBrains Mono", monospace';
+      const tw = ctx.measureText(node.roadLabel).width + 12;
 
-      // Default above node, with smart offsets where needed to avoid track/station overlap
       let rx = node.x;
-      let ry = node.y - 15;
+      let ry = node.y - 16;
       if (node.id === 'CAW_MID') {
-        rx = node.x + 88;
+        rx = node.x + 96;
         ry = node.y;
       } else if (node.id === 'DLT_BYP_UP') {
-        rx = node.x - 18;
+        rx = node.x - 24;
+        ry = node.y - 17;
+      } else if (node.id === 'PDP_THROAT') {
+        rx = node.x - 36;
         ry = node.y - 16;
-      } else if (node.id === 'STR_BAY') {
-        rx = node.x - 16;
-        ry = node.y - 16;
-      } else if (node.id === 'PML_REV') {
-        rx = node.x - 8;
-        ry = node.y - 15;
-      } else if (node.id === 'CUH_SID') {
-        ry = node.y - 16;
-      } else if (node.id === 'WOO_HSH') {
-        ry = node.y - 16;
+      } else if (node.id === 'BDP_W_LEAD' || node.id === 'BDP_E_LEAD') {
+        ry = node.y + 18;
       }
 
-      ctx.fillStyle = 'rgba(8, 13, 21, 0.9)';
+      ctx.fillStyle = 'rgba(8, 13, 21, 0.92)';
       ctx.strokeStyle =
         node.type === 'depot'
           ? 'rgba(168, 85, 247, 0.5)'
@@ -882,7 +985,7 @@ export class SchematicCanvas {
           : 'rgba(251, 191, 36, 0.45)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(rx - tw / 2, ry - 7, tw, 14, 3);
+      ctx.roundRect(rx - tw / 2, ry - 7.5, tw, 15, 3);
       ctx.fill();
       ctx.stroke();
 
@@ -907,7 +1010,7 @@ export class SchematicCanvas {
 
       ctx.save();
       ctx.beginPath();
-      ctx.arc(st.x, st.y, isSelected || isHovered ? 9 : 6, 0, Math.PI * 2);
+      ctx.arc(st.x, st.y, isSelected || isHovered ? 9 : 6.5, 0, Math.PI * 2);
       ctx.fillStyle = hasIncident ? '#EF4444' : crowdMult > 1.3 ? '#F59E0B' : '#00A4A7';
       ctx.fill();
       ctx.lineWidth = 2;
@@ -915,22 +1018,22 @@ export class SchematicCanvas {
       ctx.stroke();
 
       let lx = st.x;
-      let ly = st.y - 22;
+      let ly = st.y - 24;
       ctx.textAlign = 'center';
 
       if (st.labelPos === 'bottom') {
-        ly = st.y + 30;
+        ly = st.y + 32;
       } else if (st.labelPos === 'left') {
-        lx = st.x - 26;
+        lx = st.x - 28;
         ly = st.y + 4;
         ctx.textAlign = 'right';
       } else if (st.labelPos === 'right') {
-        lx = st.x + 26;
+        lx = st.x + 28;
         ly = st.y + 4;
         ctx.textAlign = 'left';
       }
 
-      ctx.font = isSelected || isHovered ? '700 12.5px "JetBrains Mono", monospace' : '600 11.5px "JetBrains Mono", monospace';
+      ctx.font = isSelected || isHovered ? '700 13px "JetBrains Mono", monospace' : '600 12px "JetBrains Mono", monospace';
       ctx.fillStyle = isSelected ? '#38BDF8' : hasIncident ? '#FCA5A5' : '#E2E8F0';
       const carTag = st.maxCars === 2 ? ' [2C]' : st.id === 'WIQ' ? ' [NO BNK UP]' : '';
       ctx.fillText(`${st.code} · ${st.name}${carTag}`, lx, ly);
@@ -938,7 +1041,7 @@ export class SchematicCanvas {
       if (crowdMult > 1.3) {
         ctx.font = '700 9.5px "JetBrains Mono", monospace';
         ctx.fillStyle = '#FBBF24';
-        ctx.fillText('▲ CROWD SURGE', lx, ly + 13);
+        ctx.fillText('▲ CROWD SURGE', lx, ly + 14);
       }
       ctx.restore();
     }

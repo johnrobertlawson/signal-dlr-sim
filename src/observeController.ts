@@ -164,15 +164,16 @@ export class ObserveController {
     if (fixAllImmediately) {
       const res = this.sim.stabilizeNetworkAll();
       const metrics = this.sim.getPerformanceMetrics();
+      const pop = STATION_MAP['POP'] || { x: 1220, y: 840 };
       this.currentCallout = {
         title: `🆘 Help Me! Fix It! — Network Stabilised (${res.fixedCount} Fixed)`,
         tag: 'CONTROLLER LOGIC',
         rationale: `${res.summary} I have switched my focus to pure "Help Me! Fix It!" mode: I will actively watch all 7 branches, dispatch PSAs, and regulate headways without injecting any surprise disruptions.`,
         statHighlight: `All Active Blocks Cleared · Network PPM: ${metrics.ppm}% · Active Fleet: ${metrics.activeTrainCount}`,
-        worldX: 810,
-        worldY: 500,
+        worldX: pop.x,
+        worldY: pop.y,
       };
-      this.schematic.focusCoordinates(810, 500, 1.05);
+      this.schematic.focusCoordinates(pop.x, pop.y, 0.92);
       this.onUpdateUI?.();
       return;
     }
