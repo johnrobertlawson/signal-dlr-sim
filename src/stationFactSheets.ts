@@ -7,7 +7,15 @@ export interface StationFactSheet {
   tagline: string;
   structureType: string;
   platformLayout: string;
-  trackTopology: 'TERMINUS_HEADSHUNT' | 'THREE_TRACK_HUB' | 'FOUR_PLATFORM_JUNCTION' | 'TURNBACK_CROSSOVER' | 'SHORT_PLATFORM_SDO' | 'DEPOT_YARD' | 'PLAIN_DOUBLE';
+  trackTopology:
+    | 'TERMINUS_HEADSHUNT'
+    | 'THREE_TRACK_HUB'
+    | 'FOUR_PLATFORM_JUNCTION'
+    | 'TURNBACK_CROSSOVER'
+    | 'SHORT_PLATFORM_SDO'
+    | 'DEPOT_YARD'
+    | 'WIQ_BYPASS_DELTA'
+    | 'PLAIN_DOUBLE';
   gotchas: string[];
   advantages: string[];
   disadvantages: string[];
@@ -106,6 +114,61 @@ const CUSTOM_FACT_SHEETS: Record<string, Partial<StationFactSheet>> = {
       'Complex interlocking throat; holding one junction signal RED can cascade across 3 branches within 2 minutes.',
     ],
     operationalNotes: 'Use Keyboard Shortcut [1:DELTA] to monitor Poplar, Westferry, and West India Quay together.',
+  },
+  WIQ: {
+    tagline: 'Asymmetric 4-Track Delta Viaduct — Bank-Bound Trains Bypass WIQ (SOP-WIQ)',
+    structureType: 'Elevated 4-Track Viaduct over West India North Dock with Grade-Separated Westbound Bypass Chord',
+    platformLayout: '3 Platform Tracks (P1–P2 Southbound to Canary Wharf, P4 Northbound to Poplar/Stratford) + 1 Platformless Westbound Bypass Track (CAW→WFE)',
+    trackTopology: 'WIQ_BYPASS_DELTA',
+    gotchas: [
+      'FAMOUS DLR ALIGNMENT QUIRK (SOP-WIQ): Northbound/Westbound trains from Canary Wharf (CAW) toward Westferry (WFE) and Bank (BNK) use the grade-separated Dive-Under Bypass Track (DLT_BYP_UP) on the west side of the dock, which physically has NO platform at West India Quay!',
+      'Southbound Bank→Lewisham (1xx) and Stratford↔Lewisham (4xx) trains DO stop at West India Quay, but Northbound Lewisham→Bank (1xx) trains glide past without stopping.',
+    ],
+    advantages: [
+      'Eliminates flat junction conflicts between Canary Wharf→Bank and Poplar→Canary Wharf services across the Delta.',
+      'Only 150 metres north of Canary Wharf — passengers for Bank can board any Northbound train to Poplar or walk across the dock footbridge.',
+    ],
+    disadvantages: [
+      'Perpetual source of passenger confusion when waiting for a Bank-bound train on the northbound side.',
+      '25 mph curve speed limit across the southern Delta viaduct approaches.',
+    ],
+    operationalNotes: 'Watch 1xx Lewisham→Bank units take the cyan dashed CAW→WFE BYPASS chord (DLT_BYP_UP) to the left of West India Quay while 4xx Stratford units stop at WIQ P4.',
+  },
+  STI: {
+    tagline: 'Northern Olympic & HS1 High-Speed Terminus Box',
+    structureType: 'Sub-Surface Concrete Station Box in Queen Elizabeth Olympic Park adjacent to HS1 Southeastern High Speed',
+    platformLayout: '2 Terminus Platforms (P1 & P2) + Western Olympic Tail Siding (STI_HSH) & Eastern Approach Scissor Throat (STI_XOVR)',
+    trackTopology: 'TERMINUS_HEADSHUNT',
+    gotchas: [
+      'All departing 5xx Woolwich Arsenal services must thread through the eastern scissor crossover (STI_XOVR) and call at Stratford Regional Low-Level (STR P16/P17) before joining the Lea Valley alignment.',
+      'Olympic Park event surges (Westfield & London Stadium) can double boarding dwell times.',
+    ],
+    advantages: [
+      'Dedicated western tail siding (STI_HSH) and eastern scissor crossover (STI_XOVR) allow rapid 3-car turnarounds.',
+      'Direct step-free interchange with HS1 Southeastern High Speed and Westfield Stratford City.',
+    ],
+    disadvantages: [
+      'Single branch throat through the Olympic Park cutting means a points fault at STI_XOVR locks both platforms.',
+    ],
+    operationalNotes: 'Use Keyboard Shortcut [5:NORTH] to view the full Stratford International (STI) and Stratford Regional (STR) Olympic complex.',
+  },
+  STR: {
+    tagline: 'Dual-Level Olympic Megahub — High-Level Bays (P4a/b) & Low-Level Through Platforms (P16/17)',
+    structureType: 'Split-Level Interchange: Elevated Terminal Bays (P4A/P4B) for Bow/Poplar + Low-Level Through Line (P16/P17) for Stratford Intl ↔ Canning Town',
+    platformLayout: 'High-Level Terminal Bays (STR_BAY P4A/P4B → Pudding Mill Lane) + Low-Level Through Platforms (P16 UP / P17 DN → Stratford High St) + Stratford Market Crossover (STR_MKT_JCT)',
+    trackTopology: 'FOUR_PLATFORM_JUNCTION',
+    gotchas: [
+      'Two separate DLR branches meet here: 4xx Stratford↔Canary Wharf/Lewisham trains reverse in the P4A/P4B High-Level Bays (STR_BAY), while 5xx Stratford Intl↔Woolwich trains run through Low-Level Platforms 16 & 17.',
+      'Stratford Market Junction (STR_MKT_JCT) south-east of the station links the two alignments for ECS transfers and diversions.',
+    ],
+    advantages: [
+      'One of the UK’s busiest interchanges (Central, Jubilee, Elizabeth Line, Overground, Greater Anglia, and c2c).',
+      'Pudding Mill Lane Olympic Pocket (PML_REV) just south of STR_BAY provides an extra turnback buffer during stadium surges.',
+    ],
+    disadvantages: [
+      'High passenger volumes require strict headway adherence on both the Pudding Mill Lane and Stratford High Street throats.',
+    ],
+    operationalNotes: 'You can divert trains into STR_BAY (P4A/P4B) or across STR_MKT_JCT using the Unit Inspector or NX signal lamps.',
   },
   CAW: {
     tagline: 'Flagship 3-Track, 6-Platform Financial Megahub',
@@ -227,21 +290,22 @@ const CUSTOM_FACT_SHEETS: Record<string, Partial<StationFactSheet>> = {
     operationalNotes: 'During Airshow events, inject the 7xx Stratford↔London City Airport 3-car charter template.',
   },
   WOO: {
-    tagline: 'South-East Cross-River Terminus beneath Woolwich Town Centre',
-    structureType: 'Underground Cut-and-Cover Station Box at the southern portal of the Thames Bore',
-    platformLayout: '2 Island Platforms (P3 & P4) with northern scissor crossover inside the tunnel portal',
+    tagline: 'South-East Cross-River Sub-Surface Terminus (South of the River Thames · SOP-UG1)',
+    structureType: 'Underground Cut-and-Cover Station Box on the South Bank of the River Thames (Southern Portal of the 1.55 km Thames Bore)',
+    platformLayout: '2 Sub-Surface Island Platforms (P3 & P4) + Northern Portal Scissor Crossover & Tail Buffer Siding (WOO_HSH)',
     trackTopology: 'TERMINUS_HEADSHUNT',
     gotchas: [
-      'Approached via a 50 mph, 1.55 km under-river tunnel from King George V — the fastest and longest inter-station run on the DLR.',
+      'Located south of the River Thames — approached via a 50 mph, 1.55 km sub-aqueous bored tunnel from King George V (KGV) on the North Bank.',
+      'SOP-UG1 (SINGLE TRAIN PER BORE) applies in the Thames tunnel between King George V and Woolwich Arsenal.',
     ],
     advantages: [
-      'High-speed 50 mph tunnel run allows SelTrac ATO to recover up to 25 seconds of schedule delay on approach.',
-      'Direct interchange with Elizabeth Line and Southeastern National Rail.',
+      'High-speed 50 mph under-river tunnel run allows SelTrac ATO to recover up to 25 seconds of schedule delay on approach.',
+      'Tail siding (WOO_HSH) and portal crossover allow rapid turnaround of both 2xx (Bank) and 5xx (Stratford Intl) services.',
     ],
     disadvantages: [
-      'Any track circuit drop in the Thames bore isolates Woolwich Arsenal completely from the rest of the network.',
+      'Any track circuit drop in the Thames bore isolates Woolwich Arsenal completely from the north bank.',
     ],
-    operationalNotes: 'Use Plan D (LCA Turnback) if the King George V – Woolwich Arsenal tunnel bore locks at RED.',
+    operationalNotes: 'Use Plan D (LCA Turnback) if the King George V – Woolwich Arsenal sub-aqueous Thames bore locks at RED.',
   },
   PDP: {
     tagline: 'Poplar Operations & Control Centre — 3-Road Stabling & Lifting Shop Fan',
@@ -359,6 +423,53 @@ export function renderStationMicroSchematicSVG(st: Station, sheet: StationFactSh
   const isTerminus = sheet.trackTopology === 'TERMINUS_HEADSHUNT';
   const hasCrossover = st.hasTurnback || st.isTerminus || isThreeTrack;
   const isShort = st.maxCars === 2;
+
+  if (sheet.trackTopology === 'WIQ_BYPASS_DELTA') {
+    const bypTrain = sim.trains.find(
+      (t) => t.currentNodeId === 'DLT_BYP_UP' || t.nextNodeId === 'DLT_BYP_UP'
+    );
+    return `
+    <svg viewBox="0 0 680 195" class="micro-schematic-svg" role="img" aria-label="Asymmetric 4-track West India Quay & Westbound Bypass schematic">
+      <defs>
+        <pattern id="microGridWiq" width="24" height="24" patternUnits="userSpaceOnUse">
+          <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(0, 164, 167, 0.08)" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <rect width="680" height="195" rx="6" fill="#070C12" />
+      <rect width="680" height="195" rx="6" fill="url(#microGridWiq)" />
+
+      <text x="16" y="20" fill="#94A3B8" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700">
+        4-TRACK ASYMMETRIC ALIGNMENT · WEST INDIA QUAY (WIQ) · SOP-WIQ WESTBOUND BYPASS
+      </text>
+
+      <!-- Track 1: Westbound CAW -> WFE Dive-Under Bypass Track (NO PLATFORM AT WIQ!) -->
+      <path d="M 645 58 C 480 46, 210 46, 35 58" fill="none" stroke="${bypTrain ? '#EF4444' : '#0891B2'}" stroke-width="4" stroke-dasharray="8,4" />
+      <rect x="190" y="25" width="315" height="17" rx="3" fill="rgba(8, 145, 178, 0.22)" stroke="#22D3EE" stroke-dasharray="4,3" />
+      <text x="347" y="37" text-anchor="middle" fill="#67E8F9" font-family="JetBrains Mono, monospace" font-size="9" font-weight="800">
+        ← CAW → WFE BYPASS TRACK (NO PLATFORM — BANK TRAINS SKIP WIQ)
+      </text>
+
+      <!-- Track 2: Northbound CAW -> WIQ P4 -> Poplar/Stratford -->
+      <line x1="35" y1="96" x2="645" y2="96" stroke="${upTrain ? '#EF4444' : '#334155'}" stroke-width="4.5" />
+      <text x="42" y="85" fill="#38BDF8" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700">← UP TO POPLAR/STR (P4)</text>
+      <rect x="235" y="71" width="225" height="17" rx="3" fill="#1E293B" stroke="#00A4A7" stroke-width="1.6" />
+      <text x="347" y="83" text-anchor="middle" fill="#F8FAFC" font-family="JetBrains Mono, monospace" font-size="9.5" font-weight="700">
+        PLATFORM 4 (CAW → POP/STR STOPS HERE)
+      </text>
+
+      <!-- Track 3 & 4: Southbound WFE/POP -> WIQ P1-P3 -> Canary Wharf -->
+      <line x1="35" y1="142" x2="645" y2="142" stroke="${dnTrain ? '#EF4444' : '#334155'}" stroke-width="4.5" />
+      <text x="42" y="131" fill="#38BDF8" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700">DN TO CANARY WHARF →</text>
+      <rect x="235" y="150" width="225" height="18" rx="3" fill="#1E293B" stroke="#00A4A7" stroke-width="1.6" />
+      <text x="347" y="162" text-anchor="middle" fill="#F8FAFC" font-family="JetBrains Mono, monospace" font-size="9.5" font-weight="700">
+        PLATFORMS 1–3 (ALL SOUTHBOUND TRAINS STOP)
+      </text>
+
+      <circle cx="215" cy="88" r="5.5" fill="${upSigColor}" stroke="#0F172A" stroke-width="1.5" />
+      <circle cx="485" cy="150" r="5.5" fill="${dnSigColor}" stroke="#0F172A" stroke-width="1.5" />
+    </svg>
+    `;
+  }
 
   return `
   <svg viewBox="0 0 680 185" class="micro-schematic-svg" role="img" aria-label="Detailed track schematic for ${st.name}">

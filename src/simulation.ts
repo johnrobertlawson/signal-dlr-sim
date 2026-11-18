@@ -288,12 +288,12 @@ export class DLRSimulation {
       spawnStabled(tplStrLew, 'PDP_S2', ['PDP', 'POP', 'WIQ', 'CAW', 'HER', 'SQY', 'CRH', 'MUD', 'ISG', 'CUT', 'GRE', 'DEP', 'ELV', 'LEW'], 26, 'Poplar Rd 2 Starter → Canary Wharf & Lewisham');
       spawnStabled(tplBnkLew, 'PDP_S3', ['PDP', 'POP', 'WFE', 'LIM', 'SHA', 'BNK'], 45, 'Poplar Rd 3 Starter → Bank Deep-Tube Bore');
 
-      // Early-bird units warming up in Bank Tail Headshunt, Canary Wharf Center Road, Tower Gateway, Stratford & Lewisham
+      // Early-bird units warming up in Bank Tail Headshunt, Canary Wharf Center Road, Tower Gateway, Stratford & Stratford Intl
       spawnStabled(tplBnkLew, 'BNK_HSH', ['BNK', 'SHA', 'LIM', 'WFE', 'WIQ', 'CAW', 'HER', 'SQY', 'CRH', 'MUD', 'ISG', 'CUT', 'GRE', 'DEP', 'ELV', 'LEW'], 12, 'Reversing out of Bank Tail Headshunt Overrun (SOP-UG1)');
       spawnStabled(tplTwgBck, 'TWG_UP', ['TWG', 'SHA', 'LIM', 'WFE', 'POP', 'BLW', 'EIR', 'CNT', 'RVC', 'CUH', 'PRR', 'RAL', 'BKP', 'CYP', 'GAL', 'BCK'], 18, 'First 05:30 2-Car Departure Ready at Tower Gateway');
-      spawnStabled(tplStrLew, 'STR_DN', ['STR', 'PML', 'BOW', 'DEV', 'LAN', 'ALL', 'POP', 'WIQ', 'CAW', 'HER', 'SQY', 'CRH', 'MUD', 'ISG', 'CUT', 'GRE', 'DEP', 'ELV', 'LEW'], 15);
-      spawnStabled(tplBnkLew, 'CAW_MID', ['CAW', 'WIQ', 'WFE', 'LIM', 'SHA', 'BNK'], 14, 'Stabled on Canary Wharf P3/P4 Center Road');
-      spawnStabled(tplStiWoo, 'STI_DN', ['STI', 'SHS', 'ABB', 'WHM', 'STL', 'CNT', 'WSV', 'PDK', 'LCA', 'KGV', 'WOO'], 25);
+      spawnStabled(tplStrLew, 'STR_BAY', ['STR', 'PML', 'BOW', 'DEV', 'LAN', 'ALL', 'POP', 'WIQ', 'CAW', 'HER', 'SQY', 'CRH', 'MUD', 'ISG', 'CUT', 'GRE', 'DEP', 'ELV', 'LEW'], 15, 'Launching from Stratford High-Level Bay P4A/P4B');
+      spawnStabled(tplBnkLew, 'CAW_MID', ['CAW', 'WFE', 'LIM', 'SHA', 'BNK'], 14, 'Stabled on Canary Wharf P3/P4 Center Road — Bypasses WIQ (SOP-WIQ)');
+      spawnStabled(tplStiWoo, 'STI_HSH', ['STI', 'STR', 'SHS', 'ABB', 'WHM', 'STL', 'CNT', 'WSV', 'PDK', 'LCA', 'KGV', 'WOO'], 22, 'Launching from Stratford International Olympic Siding via Stratford P17');
 
       // Schedule regular interval spawns to begin at 05:30:00 (300s from 05:25:00)
       for (const tpl of this.templates) {
@@ -515,6 +515,22 @@ export class DLRSimulation {
     }
   }
 
+  // Enforce SOP-WIQ: Northbound/Westbound trains from Canary Wharf (CAW) to Westferry (WFE) / Bank (BNK)
+  // use the grade-separated Westbound Dive-Under Bypass Track (DLT_BYP_UP) which physically has NO platform at West India Quay (WIQ).
+  private filterWiqForWestboundBypass(stations: string[], startNodeId?: string): string[] {
+    const out: string[] = [];
+    for (let i = 0; i < stations.length; i++) {
+      const curr = stations[i];
+      const prev = i > 0 ? stations[i - 1] : startNodeId ? this.nodeMap[startNodeId]?.stationId : undefined;
+      const next = i < stations.length - 1 ? stations[i + 1] : undefined;
+      if (curr === 'WIQ' && prev === 'CAW' && next === 'WFE') {
+        continue; // Skip WIQ on Northbound/Westbound CAW -> WFE -> BNK runs (SOP-WIQ)
+      }
+      out.push(curr);
+    }
+    return out;
+  }
+
   public spawnTrainFromRoute(
     tpl: ServiceTemplate,
     startNodeId: string,
@@ -526,6 +542,8 @@ export class DLRSimulation {
     const occupied = this.trains.some((t) => t.currentNodeId === startNodeId && t.edgeProgress < 0.35);
     if (occupied) return null;
 
+    const effectiveStations = this.filterWiqForWestboundBypass(routeStations, startNodeId);
+
     const prefix = tpl.codePrefix || '1';
     const num = this.serviceCounter[prefix] || 101;
     this.serviceCounter[prefix] = num + 1;
@@ -536,7 +554,7 @@ export class DLRSimulation {
     const serviceNumber = `${num}`;
     const destCode = destSt;
     const headcode = `${serviceNumber} ${destCode}`;
-    const nodePath = this.buildFullNodePathForStations(startNodeId, routeStations, tpl.cars);
+    const nodePath = this.buildFullNodePathForStations(startNodeId, effectiveStations, tpl.cars);
     const nextNodeId = nodePath.length > 1 ? nodePath[1] : null;
     const firstEdge = nextNodeId ? this.findEdge(startNodeId, nextNodeId) : null;
 
@@ -548,7 +566,7 @@ export class DLRSimulation {
       headcode,
       serviceNumber,
       destCode,
-      originCode: routeStations[0],
+      originCode: effectiveStations[0],
       templateId: tpl.id,
       cars: tpl.cars,
       isECS: !!tpl.isECS,
@@ -560,7 +578,7 @@ export class DLRSimulation {
       edgeProgress: 0,
       speedMph: 0,
       targetSpeedMph: firstEdge ? firstEdge.maxSpeedMph : 35,
-      routeQueue: [...routeStations.slice(1)],
+      routeQueue: [...effectiveStations.slice(1)],
       nodePath,
       delaySeconds: Math.floor(Math.random() * 25),
       dwellRemaining: 8,
@@ -736,7 +754,8 @@ export class DLRSimulation {
       mod = mod.slice(0, idx + 1);
     }
 
-    return mod;
+    // SOP-WIQ: Filter out WIQ when running Northbound/Westbound from Canary Wharf (CAW) to Westferry (WFE) / Bank (BNK)
+    return this.filterWiqForWestboundBypass(mod);
   }
 
   private updateSignalAspects() {
@@ -854,17 +873,49 @@ export class DLRSimulation {
 
     // Arrived at next node!
     if (train.edgeProgress >= 1.0) {
+      const prevSpeed = train.speedMph;
       train.currentNodeId = train.nextNodeId;
       train.nodePath.shift();
       train.edgeProgress = 0;
-      train.speedMph = 0;
 
       const arrivedNode = this.nodeMap[train.currentNodeId];
+      const isPassThroughJunction = arrivedNode?.type === 'junction';
       const arrivedStId = arrivedNode?.stationId;
 
-      if (arrivedStId && train.routeQueue[0] === arrivedStId) {
+      if (!isPassThroughJunction && arrivedStId && train.routeQueue[0] === arrivedStId) {
         train.routeQueue.shift();
       }
+
+      // Check if a manual NX route was locked from this node
+      if (train.nodePath.length > 1) {
+        const manualTarget = this.manualRoutes[train.currentNodeId];
+        if (manualTarget) {
+          const newTarget = this.nodeMap[manualTarget]?.stationId || manualTarget;
+          this.rerouteTrainToDestination(train, newTarget);
+          delete this.manualRoutes[train.currentNodeId];
+        }
+      }
+
+      // If this is a flying/interlocking junction node (e.g. DLT_BYP_UP, RMJ, STI_XOVR, STR_MKT_JCT),
+      // roll smoothly through at curve speed without stopping unless held at signal or block ahead occupied!
+      if (isPassThroughJunction && train.nodePath.length > 1) {
+        const nextId = train.nodePath[1];
+        const ne = this.findEdge(train.currentNodeId, nextId);
+        train.nextNodeId = nextId;
+        train.currentEdgeId = ne ? ne.id : null;
+
+        if (!arrivedNode?.signalHeld && !this.isBlockAheadOccupied(train, nextId) && ne) {
+          train.speedMph = Math.min(prevSpeed, ne.maxSpeedMph);
+          train.edgeProgress = 0.01;
+          train.state = train.psaMode ? 'PSA_RECOVERY' : 'MOVING';
+        } else {
+          train.speedMph = 0;
+          train.state = arrivedNode?.signalHeld ? 'HELD_AT_SIGNAL' : 'CBTC_BRAKING';
+        }
+        return;
+      }
+
+      train.speedMph = 0;
 
       if (arrivedStId) {
         const st = STATION_MAP[arrivedStId];
@@ -881,32 +932,20 @@ export class DLRSimulation {
           this.stationFootfall[arrivedStId] = (this.stationFootfall[arrivedStId] || 0) + boarding + alighting;
         }
 
-        // Junction nodes (like RMJ or DLT chords) pass through with 1s technical check rather than full station dwell
-        const isPassThroughJunction = arrivedNode?.type === 'junction';
-        const baseDwell = isPassThroughJunction
-          ? 1
-          : train.isECS
+        const baseDwell = train.isECS
           ? 4
           : Math.round((13 + (st ? st.baseDemand * 0.8 : 4)) * crowdMult) + selectiveDoorPenalty;
         train.dwellRemaining = baseDwell;
         train.state = train.nodePath.length <= 1 ? 'TURNBACK' : 'DWELLING';
 
-        if (!isPassThroughJunction) {
-          if (crowdMult > 1.35) {
-            train.delaySeconds += 5;
-          } else if (train.delaySeconds > 3) {
-            train.delaySeconds = Math.max(0, train.delaySeconds - 3);
-          }
+        if (crowdMult > 1.35) {
+          train.delaySeconds += 5;
+        } else if (train.delaySeconds > 3) {
+          train.delaySeconds = Math.max(0, train.delaySeconds - 3);
         }
 
         // Update nextNodeId pointer
         if (train.nodePath.length > 1) {
-          const manualTarget = this.manualRoutes[train.currentNodeId];
-          if (manualTarget) {
-            const newTarget = this.nodeMap[manualTarget]?.stationId || manualTarget;
-            this.rerouteTrainToDestination(train, newTarget);
-            delete this.manualRoutes[train.currentNodeId];
-          }
           train.nextNodeId = train.nodePath[1];
           const ne = this.findEdge(train.currentNodeId, train.nextNodeId);
           train.currentEdgeId = ne ? ne.id : null;

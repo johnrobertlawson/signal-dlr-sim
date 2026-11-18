@@ -1,5 +1,5 @@
 import { DLRSimulation } from './simulation';
-import { SchematicCanvas } from './schematicCanvas';
+import { SchematicCanvas, SectorId } from './schematicCanvas';
 import { STATION_MAP } from './dlrData';
 import { Station, Train } from './types';
 import { soundEngine } from './audio';
@@ -200,15 +200,16 @@ function renderDynamicHotkeyBar() {
   // Default Workstation Hotkeys
   dynamicHotkeyBar.innerHTML = `
     <span class="hk-badge"><kbd>SPACE</kbd> ${sim.timeScale === 0 ? 'Resume' : 'Pause'}</span>
-    <span class="hk-badge"><kbd>[</kbd> <kbd>]</kbd> Slower/Faster</span>
-    <span class="hk-badge"><kbd>0</kbd>–<kbd>5</kbd> Camera Sectors</span>
-    <span class="hk-badge"><kbd>S</kbd> Station Fact Sheet</span>
-    <span class="hk-badge"><kbd>O</kbd> Observe Co-Pilot</span>
-    <span class="hk-badge"><kbd>F1</kbd>–<kbd>F4</kbd> Contingency Plans</span>
-    <span class="hk-badge"><kbd>B</kbd> CBTC Blocks</span>
+    <span class="hk-badge"><kbd>[</kbd> <kbd>]</kbd> Speed</span>
+    <span class="hk-badge"><kbd>0</kbd>–<kbd>6</kbd> Sectors</span>
+    <span class="hk-badge"><kbd>←↑↓→</kbd> Pan</span>
+    <span class="hk-badge"><kbd>S</kbd> Fact Sheet</span>
+    <span class="hk-badge"><kbd>O</kbd> Co-Pilot</span>
+    <span class="hk-badge"><kbd>F1</kbd>–<kbd>F4</kbd> Plans</span>
+    <span class="hk-badge"><kbd>B</kbd> CBTC</span>
     <span class="hk-badge"><kbd>T</kbd> Timetables</span>
-    <span class="hk-badge"><kbd>I</kbd> Perf Index</span>
-    <span class="hk-badge"><kbd>D</kbd> +Disruption</span>
+    <span class="hk-badge"><kbd>I</kbd> Index</span>
+    <span class="hk-badge"><kbd>D</kbd> +Disrupt</span>
   `;
 }
 
@@ -937,15 +938,57 @@ document.querySelectorAll<HTMLButtonElement>('.speed-btn[data-speed]').forEach((
   });
 });
 
+function activateSectorView(sec: SectorId) {
+  schematic.jumpToSector(sec);
+  document.querySelectorAll<HTMLButtonElement>('.sector-btn[data-sector]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.sector === sec);
+  });
+  soundEngine.playRelayClick(false);
+}
+
 document.querySelectorAll<HTMLButtonElement>('.sector-btn[data-sector]').forEach((btn) => {
   btn.addEventListener('click', () => {
-    const sec = btn.dataset.sector as 'CORE' | 'WEST' | 'SOUTH' | 'EAST' | 'NORTH' | 'FULL';
-    schematic.jumpToSector(sec);
-    document.querySelectorAll('.sector-btn[data-sector]').forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
-    soundEngine.playRelayClick(false);
+    const sec = btn.dataset.sector as SectorId;
+    activateSectorView(sec);
   });
 });
+
+// Wire On-Canvas Navigation & Complex Switcher Toolbar
+document.querySelectorAll<HTMLButtonElement>('.nav-chip-btn[data-jump-sector]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const sec = btn.dataset.jumpSector as SectorId;
+    activateSectorView(sec);
+  });
+});
+
+document.getElementById('canvas-zoom-in-btn')?.addEventListener('click', () => {
+  schematic.zoomBy(1.18);
+  soundEngine.playRelayClick(true);
+});
+
+document.getElementById('canvas-zoom-out-btn')?.addEventListener('click', () => {
+  schematic.zoomBy(0.84);
+  soundEngine.playRelayClick(false);
+});
+
+const canvasStationJumpSelect = document.getElementById('canvas-station-jump-select') as HTMLSelectElement | null;
+if (canvasStationJumpSelect) {
+  canvasStationJumpSelect.innerHTML =
+    `<option value="">📍 Jump to Station / Complex…</option>` +
+    sim.stations
+      .map((s) => `<option value="${s.id}">${s.code} · ${s.name} (${s.branch})</option>`)
+      .join('');
+  canvasStationJumpSelect.addEventListener('change', () => {
+    const stId = canvasStationJumpSelect.value;
+    if (!stId || !STATION_MAP[stId]) return;
+    const st = STATION_MAP[stId];
+    schematic.selectedStation = st;
+    schematic.focusCoordinates(st.x, st.y, 1.18);
+    renderStationBoard(true);
+    soundEngine.playSplitFlap(4);
+    canvasStationJumpSelect.value = '';
+  });
+}
 
 // Keyboard shortcuts (Dynamic context-aware shortcuts + global controls)
 const SPEED_STEPS = [0, 0.5, 1, 4, 10];
@@ -973,27 +1016,40 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') {
     e.preventDefault();
     setSimSpeed(sim.timeScale === 0 ? 1 : 0);
-  } else if (e.key === '[' || e.key === '-') {
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    schematic.panBy(0, 75);
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    schematic.panBy(0, -75);
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    schematic.panBy(75, 0);
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    schematic.panBy(-75, 0);
+  } else if (e.key === '[') {
     const idx = SPEED_STEPS.indexOf(sim.timeScale);
     if (idx > 0) setSimSpeed(SPEED_STEPS[idx - 1]);
-  } else if (e.key === ']' || e.key === '=') {
+  } else if (e.key === ']') {
     const idx = SPEED_STEPS.indexOf(sim.timeScale);
     if (idx !== -1 && idx < SPEED_STEPS.length - 1) setSimSpeed(SPEED_STEPS[idx + 1]);
-  } else if (['0', '1', '2', '3', '4', '5'].includes(e.key)) {
-    const map: Record<string, 'FULL' | 'CORE' | 'WEST' | 'SOUTH' | 'EAST' | 'NORTH'> = {
+  } else if (e.key === '-' || e.key === '_') {
+    schematic.zoomBy(0.86);
+  } else if (e.key === '=' || e.key === '+') {
+    schematic.zoomBy(1.16);
+  } else if (['0', '1', '2', '3', '4', '5', '6'].includes(e.key)) {
+    const map: Record<string, SectorId> = {
       '0': 'FULL',
       '1': 'CORE',
       '2': 'WEST',
       '3': 'SOUTH',
       '4': 'EAST',
       '5': 'NORTH',
+      '6': 'WOOLWICH',
     };
     const sec = map[e.key];
-    schematic.jumpToSector(sec);
-    document.querySelectorAll<HTMLButtonElement>('.sector-btn[data-sector]').forEach((b) => {
-      b.classList.toggle('active', b.dataset.sector === sec);
-    });
-    soundEngine.playRelayClick(false);
+    activateSectorView(sec);
   } else if (e.key === 'Escape') {
     if (schematic.nxEntryNodeId) {
       schematic.nxEntryNodeId = null;
@@ -1105,9 +1161,18 @@ toggleAudioBtn.addEventListener('click', () => {
   toggleAudioBtn.textContent = soundEngine.enabled ? '🔊' : '🔇';
 });
 
-// Trigger Random Disruption from Action Inset
+// Trigger Random Disruption & Collapse/Expand Action Inset
 document.getElementById('random-disruption-btn')?.addEventListener('click', () => {
   sim.triggerScopedDisruption('ALL');
+});
+
+const actionInsetPanel = document.getElementById('action-inset-panel');
+const toggleInsetCollapseBtn = document.getElementById('toggle-inset-collapse-btn');
+toggleInsetCollapseBtn?.addEventListener('click', () => {
+  if (!actionInsetPanel) return;
+  const isCollapsed = actionInsetPanel.classList.toggle('collapsed');
+  toggleInsetCollapseBtn.textContent = isCollapsed ? '▸' : '▾';
+  soundEngine.playRelayClick(!isCollapsed);
 });
 
 // Modal 1: Timetable & Scenario Generator

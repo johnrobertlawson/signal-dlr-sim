@@ -29,9 +29,21 @@ const DLR_LORE_FACTS: {
 }[] = [
   {
     stationId: 'WIQ',
-    title: 'Poplar – West India Quay Grade-Separated Delta',
-    fact: 'I always keep an eye on the Delta triangle here. Three double-track viaducts weave over and under each other so Bank↔Lewisham, Stratford↔Canary Wharf, and Bank↔Woolwich services never cross on the flat.',
-    stat: '3 Flying Junctions · Max 25 mph Curve Speed',
+    title: 'Why Bank-Bound Trains Cannot Stop at West India Quay (SOP-WIQ)',
+    fact: 'Notice that cyan dashed bypass track to the left of West India Quay? To eliminate flat-junction conflicts across the Delta, northbound trains from Canary Wharf towards Bank take a grade-separated dive-under bypass (DLT_BYP_UP) that physically has NO platform at West India Quay!',
+    stat: '4 Tracks · 3 Platform Faces · Westbound CAW→WFE Bypass Skips WIQ',
+  },
+  {
+    stationId: 'STI',
+    title: 'Stratford International & Stratford Regional Dual-Level Complex',
+    fact: 'Up north in the Olympic Complex, 5xx trains launch from the Stratford International HS1 box (STI), thread through the Low-Level through platforms (P16/P17) at Stratford Regional (STR), and pass Stratford Market Junction, while 4xx Lewisham services reverse in Stratford’s High-Level Bays (P4A/P4B).',
+    stat: 'Dual-Level Olympic Hub · STI Tail Siding + STR P4A/B & P16/17',
+  },
+  {
+    stationId: 'WOO',
+    title: 'Woolwich Arsenal — 50 mph Sub-Aqueous Bore Under the Thames',
+    fact: 'Between King George V on the north bank and Woolwich Arsenal on the south bank, trains dive through a 1.55 km twin-bore tunnel beneath the River Thames at 50 mph — the fastest section on the DLR, governed by SOP-UG1 (1 train per bore).',
+    stat: '1.55 km Thames Tunnel · 50 mph Top Speed · Sub-Surface P3/P4 Box',
   },
   {
     stationId: 'TWG',

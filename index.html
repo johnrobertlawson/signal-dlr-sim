@@ -81,11 +81,12 @@
         <!-- Quick Sector Camera Jump Bar -->
         <div class="sector-jump-cluster" role="group" aria-label="Camera Sector Hotkeys">
           <button type="button" class="sector-btn" data-sector="FULL" title="Full 7-Branch Network Overview (Key 0)">0:ALL</button>
-          <button type="button" class="sector-btn active" data-sector="CORE" title="Poplar, Westferry & Canary Wharf Delta (Key 1)">1:DELTA</button>
+          <button type="button" class="sector-btn active" data-sector="CORE" title="Poplar, Westferry & West India Quay 4-Track Bypass Delta (Key 1)">1:DELTA/WIQ</button>
           <button type="button" class="sector-btn" data-sector="WEST" title="Bank Deep-Tube Bore, Tower Gateway & Shadwell (Key 2)">2:WEST</button>
-          <button type="button" class="sector-btn" data-sector="SOUTH" title="Isle of Dogs, Cutty Sark & Lewisham (Key 3)">3:SOUTH</button>
-          <button type="button" class="sector-btn" data-sector="EAST" title="Canning Town, ExCeL, Beckton Depot & City Airport (Key 4)">4:EAST</button>
-          <button type="button" class="sector-btn" data-sector="NORTH" title="Stratford, Stratford Intl & Poplar Depot (Key 5)">5:NORTH</button>
+          <button type="button" class="sector-btn" data-sector="SOUTH" title="Isle of Dogs, Cutty Sark Bore & Lewisham (Key 3)">3:SOUTH</button>
+          <button type="button" class="sector-btn" data-sector="EAST" title="Canning Town, ExCeL & Beckton Multi-Road Depot (Key 4)">4:BECKTON</button>
+          <button type="button" class="sector-btn" data-sector="NORTH" title="Stratford International (STI), Stratford Regional (STR) & Poplar Depot (Key 5)">5:STR/STI</button>
+          <button type="button" class="sector-btn" data-sector="WOOLWICH" title="London City Airport, King George V & Sub-Aqueous Woolwich Arsenal Bore (Key 6)">6:WOO</button>
         </div>
 
         <!-- Modal Dialog Triggers & Overlays -->
@@ -197,18 +198,28 @@
           <!-- Top-Left NX / Signalling Status Banner -->
           <div id="nx-status-banner" class="nx-status-banner">
             <span class="status-dot green"></span>
-            <span id="nx-status-text">MON 05:25 COLD START (5m to 05:30 First Train) · Hover or click any [i], Station, Depot Road, or Signal</span>
+            <span id="nx-status-text">MON 05:25 COLD START · Hover or click any [i], Station, Depot Road, or Signal</span>
             <button type="button" class="info-chip" style="pointer-events:auto;" interestfor="tip-nx" popovertarget="tip-nx" popovertargetaction="show" aria-label="About ARS and NX Signalling">i</button>
             <div id="tip-nx" popover="hint" class="terse-tip">
-              <strong>ARS vs NX &amp; SOP RULES</strong> · ARS sets routes automatically. Click any Entry signal then Exit signal (including Depot Roads BDP_R1–R4 &amp; PDP_S1–S3) to lock a white NX route. SOP-UG1 allows 1 train per deep bore; SOP-TWG locks 3-car trains out of Tower Gateway.
+              <strong>ARS vs NX &amp; SOP RULES</strong> · ARS sets routes automatically. Click any Entry signal then Exit signal (including Depot Roads BDP_R1–R4 &amp; PDP_S1–S3) to lock a white NX route. SOP-UG1 allows 1 train per deep bore; SOP-TWG locks 3-car trains out of Tower Gateway; SOP-WIQ routes Bank-bound trains around West India Quay.
             </div>
+          </div>
+
+          <!-- Top-Right On-Canvas Station Quick-Jump & Zoom Toolbar -->
+          <div id="canvas-nav-toolbar" class="canvas-nav-toolbar" role="toolbar" aria-label="Schematic Station Finder & Zoom Controls">
+            <select id="canvas-station-jump-select" class="canvas-jump-select" aria-label="Jump to any Station or Depot">
+              <option value="">📍 Jump to Station / Depot…</option>
+            </select>
+            <button type="button" class="nav-chip-btn" id="canvas-zoom-out-btn" title="Zoom Out (-)">－</button>
+            <button type="button" class="nav-chip-btn" id="canvas-zoom-in-btn" title="Zoom In (+)">＋</button>
+            <button type="button" class="nav-chip-btn" data-jump-sector="FULL" title="Fit Entire 7-Branch DLR Network [Key 0]">⌖ FIT</button>
           </div>
 
           <!-- Bottom-Left Legend & Context-Sensitive Keyboard Shortcuts Bar -->
           <div class="bottom-hud-stack">
             <div id="dynamic-hotkey-bar" class="dynamic-hotkey-bar" aria-live="polite">
               <span class="hk-badge"><kbd>SPACE</kbd> Pause/Resume</span>
-              <span class="hk-badge"><kbd>0</kbd>–<kbd>5</kbd> Jump Sector</span>
+              <span class="hk-badge"><kbd>0</kbd>–<kbd>6</kbd> Jump Sector</span>
               <span class="hk-badge"><kbd>B</kbd> Toggle CBTC</span>
               <span class="hk-badge"><kbd>T</kbd> Timetables</span>
               <span class="hk-badge"><kbd>I</kbd> Perf Index</span>
@@ -219,23 +230,23 @@
               <div class="legend-item"><span class="swatch cbtc"></span> CBTC Safe Footprint</div>
               <div class="legend-item"><span class="swatch locked"></span> NX Locked Route</div>
               <div class="legend-item"><span class="swatch psa"></span> PSA Manual 18mph</div>
-              <div class="legend-item"><span class="swatch two-car"></span> [2C] 2-Car Max</div>
+              <div class="legend-item"><span class="swatch two-car"></span> [2C] / [NO BNK UP]</div>
               <button type="button" class="info-chip" style="pointer-events:auto;" interestfor="tip-legend" popovertarget="tip-legend" popovertargetaction="show" aria-label="About Schematic Legend">i</button>
               <div id="tip-legend" popover="hint" class="terse-tip">
-                <strong>TRACK COLOURS &amp; BERTHS</strong> · Red = Occupied block. Green glow = CBTC braking zone. White = Locked NX route. Purple/Cyan boxes = Multi-road Depot Stabling (BDP Rd 1–4, PDP Rd 1–3) &amp; Turnback Pockets (BNK_HSH, CAW P3/P4).
+                <strong>TRACK COLOURS &amp; BERTHS</strong> · Red = Occupied block. Green glow = CBTC braking zone. White = Locked NX route. Cyan dashed curve at WIQ = Westbound CAW→WFE Bypass (no WIQ stop). Purple/Cyan boxes = Multi-road Depot Stabling &amp; Turnback Pockets.
               </div>
             </div>
           </div>
 
           <!-- FLOATING ACTION INSET: "NEXT BLOCKING EVENT TO ADDRESS" & CONTINGENCY PLANS -->
-          <aside class="action-inset" aria-label="Operational Action Inset">
+          <aside id="action-inset-panel" class="action-inset" aria-label="Operational Action Inset">
             <div class="inset-header">
               <div class="inset-title-row">
                 <span class="pulse-indicator"></span>
                 <h2>PRIORITY ACTION INSET</h2>
                 <button type="button" class="info-chip" interestfor="tip-inset" popovertarget="tip-inset" popovertargetaction="show" aria-label="About Priority Action Inset">i</button>
                 <div id="tip-inset" popover="hint" class="terse-tip">
-                  <strong>ACTION INSET &amp; AI RESCUE</strong> · Lists live blocking faults &amp; pre-service checks. Click <strong>🆘 HELP ME! FIX IT!</strong> to let the AI Chief Controller take charge and fix all active bottlenecks!
+                  <strong>ACTION INSET &amp; AI RESCUE</strong> · Lists live blocking faults &amp; pre-service checks. Click <strong>🆘 HELP! FIX IT</strong> to let the AI Chief Controller take charge, or click <strong>▾</strong> to minimise this panel for a wider map view.
                 </div>
               </div>
               <div class="inset-actions">
@@ -244,6 +255,9 @@
                 </button>
                 <button type="button" id="random-disruption-btn" class="mini-action-btn" title="Trigger a realistic DLR operational disruption">
                   ⚡ +DISRUPT
+                </button>
+                <button type="button" id="toggle-inset-collapse-btn" class="mini-action-btn collapse-btn" title="Minimise or Expand Priority Action Inset for wider map view">
+                  ▾
                 </button>
               </div>
             </div>
