@@ -36,6 +36,7 @@ export interface TrackEdge {
   from: string;
   to: string;
   lengthMeters: number;
+  oppositeEdgeId?: string; // Parallel running road in the opposite direction
   maxSpeedMph: number;
   isFlyover?: boolean;
   isTunnel?: boolean;
@@ -77,6 +78,7 @@ export interface Train {
   currentNodeId: string;
   nextNodeId: string | null;
   currentEdgeId: string | null;
+  previousEdgeId?: string; // Incoming alignment through the last junction
   edgeProgress: number; // 0.0 to 1.0 along current edge
   speedMph: number;
   targetSpeedMph: number;
@@ -85,6 +87,7 @@ export interface Train {
   delaySeconds: number;
   dwellRemaining: number;
   passengers: number;
+  airportPassengers?: number;
   maxCapacity: number;
   color: string;
   breakdownReason?: string;

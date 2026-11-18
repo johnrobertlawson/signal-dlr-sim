@@ -4,6 +4,22 @@ An interactive UK train signalling, timetable, and service control workstation f
 
 ---
 
+## Install the desktop game
+
+Download the installer for your computer from the [latest release](https://github.com/johnrobertlawson/signal-dlr-sim/releases/latest). The game and its local server are bundled. A graphical browser displays the simulator.
+
+- **Mac, Intel or Apple silicon (macOS 13+)** — Open the universal `.pkg`. Launch **DLR Signalling Sim** from Applications and drag it to the Dock to keep it there. The local-build installer is unsigned. macOS may require approval in **System Settings → Privacy & Security**.
+- **Ubuntu Desktop** — Open the `.deb` in a package installer. Choose `amd64` for Intel/AMD or `arm64` for ARM. The package manager installs missing browser and desktop-launch dependencies. Launch **DLR Signalling Sim** from Show Applications. The command-line installation equivalent is `sudo apt install ./dlr-signalling-sim_1.2.0_amd64.deb` from the downloads folder.
+- Both installers open a dedicated window with a compatible Chromium browser, or a tab in the system browser. Closing the final game window releases the local server. Source checkout and Node.js are only needed for development.
+
+### Watch London City Airport
+
+Choose **Monday 07:30** and click **✈ LCY** on the map toolbar. An inbound flight is approaching as the shift starts. The station board shows simulated arrivals and departures, the runway camera and directional DLR queues. Choose **LCY runway camera** on the third-monitor feed to keep it visible while controlling the rest of the network. Front-window and trackside cameras also catch aircraft along the airport branch, with occasional helicopter overflights.
+
+**Delay flight bank 15 min** holds several upcoming flights. When services resume, arriving passengers reach the station four to eight simulated minutes after landing. Passengers travelling to the terminal join airport-serving trains at Canning Town and Woolwich Arsenal before scheduled departures. The flight numbers, passenger splits and timings are gameplay assumptions. Operating windows follow [LCY’s published hours](https://www.londoncityairport.com/corporate/environment/noise-management-and-monitoring/airport-operating-hours). The game also links to the [official live flight board](https://www.londoncityairport.com/flight-info/departures-arrivals).
+
+Across the network, queues grow with simulated time, station demand and disruptions. Boarding draws from each queue up to the train’s available capacity and passenger exchange affects dwell. The relative station weights use TfL’s 2019 DLR annualised entries and exits. [London Assembly, question 2022/0209, DLR table](https://gla.moderngov.co.uk/documents/b24191/Appendix%203a%20-%20Written%20Answers%20-%20Attachments%20Thursday%2020-Jan-2022%2010.00%20London%20Assembly%20Mayors%20Qu.pdf?T=9)
+
 ## Key Features
 
 ### Signalling, Physics & Network Realism
@@ -40,11 +56,17 @@ Optional query routes:
 - `http://127.0.0.1:5173/?mode=autopilot` — Launch directly into **Full Auto-Pilot Sit-Back Mode** from session start.
 - `http://127.0.0.1:5173/?mode=desk` — Open the **2nd Monitor Overwatch Wall & Deep Telemetry Desk** standalone.
 
-### Standalone macOS App Launcher (`.app`)
-A pre-built macOS bundle (`DLR Signalling Sim.app`) starts Vite, opens a dedicated chromeless desktop window, and shuts down the background server automatically when the window closes. To rebuild it after edits:
+### Source-checkout macOS Dock launcher
+A pre-built macOS bundle (`DLR Signalling Sim.app`) starts Vite, opens a dedicated chromeless desktop window, and shuts down the background server automatically when the window closes. The Dock launcher verifies each new server before opening its window. It starts on 127.0.0.1 at port 5173 and picks a free port if that one is occupied. For the current address, open `~/Library/Logs/DLR Signalling Sim/launcher.log` in Finder. The latest Ready entry gives the URL. Append `/__dlr/status` to the origin for the running app’s identity and session ID. A Closed entry means the last window has disconnected and the Dock icon can start a fresh session.
+
+To rebuild the launcher:
 ```bash
 npm run build:mac-app
 ```
+
+### Build desktop installers
+
+Run `npm ci` and `npm run package:desktop` from the project root with Python 3 and Go installed. macOS uses its packaging tools to build a universal installer. Debian/Ubuntu uses `dpkg-deb` to build both Linux architectures. Files are versioned from `package.json` and written to `release/`.
 
 ### Production Build Check
 ```bash

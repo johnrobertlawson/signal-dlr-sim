@@ -1,0 +1,37 @@
+name: Ubuntu desktop installers
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: false
+      - run: npm ci
+      - run: npm run check:airport
+      - run: npm run package:desktop
+      - name: Install and launch from the graphical application menu
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ./release/*_amd64.deb libgtk-3-bin xdotool xvfb xauth desktop-file-utils
+          desktop-file-validate /usr/share/applications/dlr-signalling-sim.desktop
+          dbus-run-session -- xvfb-run -a bash -eu -c '
+            gtk-launch dlr-signalling-sim
+            timeout 45 xdotool search --sync --onlyvisible --name "DLR SelTrac"
+            curl -fsS http://127.0.0.1:18573/ | grep -q "dlr-desktop"
+          '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-desktop-installers
+          path: release/*.deb

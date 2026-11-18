@@ -1,70 +1,16 @@
 #!/bin/zsh
-
-# Ensure Node/NVM and Homebrew are on PATH when launched from Finder/Dock
-export NVM_DIR="$HOME/.nvm"
-if [ -d "$NVM_DIR/versions/node" ]; then
-  LATEST_NODE_BIN=$(ls -d "$NVM_DIR/versions/node"/*/bin 2>/dev/null | tail -n 1)
-  if [ -n "$LATEST_NODE_BIN" ]; then
-    export PATH="$LATEST_NODE_BIN:$PATH"
-  fi
-fi
+set -eu
+repo_dir=${0:A:h:h:h:h}
+if [[ ! -f "$repo_dir/scripts/launch-mac.mjs" ]]; then repo_dir=/Users/johnlawson/Documents/GitHub/signal-dlr-sim; fi
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-
-REPO_DIR="/Users/johnlawson/Documents/GitHub/signal-dlr-sim"
-cd "$REPO_DIR" || exit 1
-
-# Pick port 5173 (or next free port if 5173 is already in use)
-PORT=5173
-while lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; do
-  PORT=$((PORT + 1))
-done
-
-SERVER_PID=""
-APP_PROFILE_DIR="/tmp/dlr-signalling-sim-chrome-profile"
-
-cleanup() {
-  if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-  # Ensure any child process bound to PORT is terminated cleanly
-  local leftover_pids=$(lsof -ti tcp:$PORT 2>/dev/null)
-  if [ -n "$leftover_pids" ]; then
-    kill $leftover_pids 2>/dev/null || true
-  fi
-}
-
-trap cleanup EXIT INT TERM HUP QUIT
-
-# Start Vite server in background
-./node_modules/.bin/vite --host 127.0.0.1 --port "$PORT" --strictPort > /tmp/dlr-sim-server.log 2>&1 &
-SERVER_PID=$!
-
-# Wait until the server responds (typically < 250ms)
-for i in {1..40}; do
-  if curl -sf "http://127.0.0.1:$PORT" >/dev/null 2>&1; then
-    break
-  fi
-  sleep 0.1
-done
-
-URL="http://127.0.0.1:$PORT"
-
-# Launch dedicated chromeless App Window and block until the user closes the window
-if [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]; then
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-    --app="$URL" \
-    --user-data-dir="$APP_PROFILE_DIR" \
-    --window-size=1640,980 \
-    --no-first-run \
-    --no-default-browser-check \
-    --disable-features=Translate >/dev/null 2>&1
-elif [ -x "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" ]; then
-  "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" \
-    --app="$URL" \
-    --user-data-dir="$APP_PROFILE_DIR" \
-    --window-size=1640,980 \
-    --no-first-run >/dev/null 2>&1
-else
-  open -W "$URL"
+node_bins=("$HOME"/.nvm/versions/node/*/bin(Nn))
+if (( ${#node_bins} )); then export PATH="${node_bins[-1]}:$PATH"; fi
+if ! cd "$repo_dir" || [[ ! -f scripts/launch-mac.mjs ]]; then
+  osascript -e 'display alert "DLR Signalling Sim" message "Open the app in the signal-dlr-sim project folder."'
+  exit 1
 fi
+if ! command -v node >/dev/null; then
+  osascript -e 'display alert "DLR Signalling Sim" message "The simulator needs Node.js to start its local server."'
+  exit 1
+fi
+exec node scripts/launch-mac.mjs

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DLR Signalling Sim
+Comment=Control Docklands Light Railway trains and watch London City Airport
+Exec=/usr/bin/dlr-signalling-sim
+Icon=dlr-signalling-sim
+Terminal=false
+Categories=Game;Simulation;

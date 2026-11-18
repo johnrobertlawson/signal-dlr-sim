@@ -481,10 +481,6 @@ export function mountSecondMonitorDesk(
     window.close();
   });
 
-  window.addEventListener('beforeunload', () => {
-    (window.opener as Window | null)?.__dlrSimBridge?.onDeskClosed();
-  });
-
   document.querySelectorAll<HTMLButtonElement>('.desk-ex-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const b = getBridge();

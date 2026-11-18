@@ -1,21 +1,22 @@
 import { Station, TrackNode, TrackEdge, ServiceTemplate, ContingencyPlan } from './types';
 
+// Interchange and signed walking distances follow https://content.tfl.gov.uk/dlr-route-map.pdf (March 2026).
 // Expanded 3180 x 2120 Pure Orthogonal + 45-Degree IECC Signalling Schematic Layout (Zero Spiderwebs)
 export const STATIONS: Station[] = [
   // 1. WEST BRANCH (Bank Deep-Tube Bore & Tower Gateway 2-Car Viaduct -> Royal Mint St -> Shadwell -> Limehouse -> Westferry)
-  { id: 'BNK', code: 'BNK', name: 'Bank', branch: 'West', x: 230, y: 730, maxCars: 3, baseDemand: 10, interchange: ['Central', 'Northern', 'W&C'], hasTurnback: true, isTerminus: true, labelPos: 'top' },
-  { id: 'TWG', code: 'TWG', name: 'Tower Gateway', branch: 'West', x: 210, y: 950, maxCars: 2, baseDemand: 7, interchange: ['District', 'Circle', 'C2C'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
-  { id: 'SHA', code: 'SHA', name: 'Shadwell', branch: 'West', x: 540, y: 840, maxCars: 3, baseDemand: 6, interchange: ['Overground'], hasTurnback: true, isTerminus: false, labelPos: 'top' },
-  { id: 'LIM', code: 'LIM', name: 'Limehouse', branch: 'West', x: 680, y: 840, maxCars: 3, baseDemand: 6, interchange: ['C2C'], hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
-  { id: 'WFE', code: 'WFE', name: 'Westferry', branch: 'West', x: 820, y: 840, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  { id: 'BNK', code: 'BNK', name: 'Bank', branch: 'West', x: 230, y: 730, maxCars: 3, baseDemand: 10, interchange: ['Central', 'Northern', 'Waterloo & City', 'Circle via Monument', 'District via Monument', 'National Rail · Cannon Street 125 m'], hasTurnback: true, isTerminus: true, labelPos: 'top' },
+  { id: 'TWG', code: 'TWG', name: 'Tower Gateway', branch: 'West', x: 210, y: 950, maxCars: 2, baseDemand: 7, interchange: ['Circle · Tower Hill 150 m', 'District · Tower Hill 150 m', 'National Rail · Fenchurch Street 100 m', 'Metropolitan · Aldgate 450 m', 'River services · Tower Pier 500 m'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
+  { id: 'SHA', code: 'SHA', name: 'Shadwell', branch: 'West', x: 540, y: 840, maxCars: 3, baseDemand: 6, interchange: ['Windrush line · 60 m'], hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  { id: 'LIM', code: 'LIM', name: 'Limehouse', branch: 'West', x: 680, y: 840, maxCars: 3, baseDemand: 6, interchange: ['National Rail · c2c'], hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
+  { id: 'WFE', code: 'WFE', name: 'Westferry', branch: 'West', x: 820, y: 840, maxCars: 3, baseDemand: 6, interchange: ['River services · Canary Wharf Pier 500 m'], hasTurnback: true, isTerminus: false, labelPos: 'top' },
 
   // 2. STRATFORD INTERNATIONAL (STI) & STRATFORD REGIONAL (STR) OLYMPIC ARCH + NORTH SPINE (x = 1040)
   // STI sits at the top-center (x = 1380, y = 75), dropping straight down to STR (x = 1380, y = 185),
   // which forks cleanly West to the x = 1040 Bow/Poplar Spine and East to the x = 1760 Lea Valley/Canning Town Spine!
-  { id: 'STI', code: 'STI', name: 'Stratford International', branch: 'StratfordIntl', x: 1380, y: 75, maxCars: 3, baseDemand: 8, interchange: ['HS1 Southeastern'], hasTurnback: true, isTerminus: true, labelPos: 'top' },
-  { id: 'STR', code: 'STR', name: 'Stratford', branch: 'North', x: 1380, y: 185, maxCars: 3, baseDemand: 10, interchange: ['Central', 'Jubilee', 'Elizabeth', 'Overground'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
+  { id: 'STI', code: 'STI', name: 'Stratford International', branch: 'StratfordIntl', x: 1380, y: 75, maxCars: 3, baseDemand: 8, interchange: ['National Rail · Southeastern high speed'], hasTurnback: true, isTerminus: true, labelPos: 'top' },
+  { id: 'STR', code: 'STR', name: 'Stratford', branch: 'North', x: 1380, y: 185, maxCars: 3, baseDemand: 10, interchange: ['Central', 'Jubilee', 'Elizabeth line', 'Mildmay line', 'National Rail'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
   { id: 'PML', code: 'PML', name: 'Pudding Mill Lane', branch: 'North', x: 1040, y: 310, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'right' },
-  { id: 'BOW', code: 'BOW', name: 'Bow Church', branch: 'North', x: 1040, y: 420, maxCars: 3, baseDemand: 5, interchange: ['District', 'H&C'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
+  { id: 'BOW', code: 'BOW', name: 'Bow Church', branch: 'North', x: 1040, y: 420, maxCars: 3, baseDemand: 5, interchange: ['District · Bow Road 300 m', 'Hammersmith & City · Bow Road 300 m'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
   { id: 'DEV', code: 'DEV', name: 'Devons Road', branch: 'North', x: 1040, y: 530, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'left' },
   { id: 'LAN', code: 'LAN', name: 'Langdon Park', branch: 'North', x: 1040, y: 635, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'left' },
   { id: 'ALL', code: 'ALL', name: 'All Saints', branch: 'North', x: 1040, y: 740, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'left' },
@@ -23,34 +24,34 @@ export const STATIONS: Station[] = [
   // 3. LEA VALLEY SPINE (Vertical Axis x = 1760: Stratford High St -> Abbey Road -> West Ham -> Star Lane -> Canning Town)
   { id: 'SHS', code: 'SHS', name: 'Stratford High Street', branch: 'StratfordIntl', x: 1760, y: 310, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'right' },
   { id: 'ABB', code: 'ABB', name: 'Abbey Road', branch: 'StratfordIntl', x: 1760, y: 425, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'right' },
-  { id: 'WHM', code: 'WHM', name: 'West Ham', branch: 'StratfordIntl', x: 1760, y: 540, maxCars: 3, baseDemand: 7, interchange: ['Jubilee', 'District', 'C2C'], hasTurnback: false, isTerminus: false, labelPos: 'right' },
+  { id: 'WHM', code: 'WHM', name: 'West Ham', branch: 'StratfordIntl', x: 1760, y: 540, maxCars: 3, baseDemand: 7, interchange: ['District', 'Hammersmith & City', 'Jubilee', 'National Rail · c2c'], hasTurnback: false, isTerminus: false, labelPos: 'right' },
   { id: 'STL', code: 'STL', name: 'Star Lane', branch: 'StratfordIntl', x: 1760, y: 655, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'right' },
 
   // 4. CENTRAL HORIZONTAL TRUNK (y = 840) & POPLAR 3-ROAD DEPOT YARD (x = 1220..1540, y = 540..680)
-  { id: 'POP', code: 'POP', name: 'Poplar', branch: 'Central', x: 1220, y: 840, maxCars: 3, baseDemand: 8, hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
+  { id: 'POP', code: 'POP', name: 'Poplar', branch: 'Central', x: 1220, y: 840, maxCars: 3, baseDemand: 8, interchange: ['Elizabeth line · Canary Wharf 400 m'], hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
   { id: 'PDP', code: 'PDP', name: 'Poplar Depot', branch: 'Central', x: 1350, y: 610, maxCars: 3, baseDemand: 1, hasTurnback: true, isTerminus: true, labelPos: 'top' },
   { id: 'BLW', code: 'BLW', name: 'Blackwall', branch: 'Central', x: 1500, y: 840, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
   { id: 'EIR', code: 'EIR', name: 'East India', branch: 'Central', x: 1680, y: 840, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'top' },
   { id: 'CNT', code: 'CNT', name: 'Canning Town', branch: 'Central', x: 1900, y: 840, maxCars: 3, baseDemand: 9, interchange: ['Jubilee'], hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
 
   // 5. SOUTH SPINE (Vertical Axis x = 1040: West India Quay -> Canary Wharf -> Isle of Dogs -> Thames -> Cutty Sark -> Lewisham)
-  { id: 'WIQ', code: 'WIQ', name: 'West India Quay', branch: 'South', x: 1040, y: 1040, maxCars: 3, baseDemand: 6, hasTurnback: false, isTerminus: false, labelPos: 'right' },
-  { id: 'CAW', code: 'CAW', name: 'Canary Wharf', branch: 'South', x: 1040, y: 1150, maxCars: 3, baseDemand: 10, interchange: ['Jubilee', 'Elizabeth'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
-  { id: 'HER', code: 'HER', name: 'Heron Quays', branch: 'South', x: 1040, y: 1245, maxCars: 3, baseDemand: 7, hasTurnback: false, isTerminus: false, labelPos: 'left' },
+  { id: 'WIQ', code: 'WIQ', name: 'West India Quay', branch: 'South', x: 1040, y: 1040, maxCars: 3, baseDemand: 6, interchange: ['Elizabeth line · Canary Wharf 150 m'], hasTurnback: false, isTerminus: false, labelPos: 'right' },
+  { id: 'CAW', code: 'CAW', name: 'Canary Wharf', branch: 'South', x: 1040, y: 1150, maxCars: 3, baseDemand: 10, interchange: ['Jubilee · 225 m', 'Elizabeth line · 225 m', 'River services · Canary Wharf Pier 500 m'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
+  { id: 'HER', code: 'HER', name: 'Heron Quays', branch: 'South', x: 1040, y: 1245, maxCars: 3, baseDemand: 7, interchange: ['Jubilee · Canary Wharf 100 m'], hasTurnback: false, isTerminus: false, labelPos: 'left' },
   { id: 'SQY', code: 'SQY', name: 'South Quay', branch: 'South', x: 1040, y: 1330, maxCars: 3, baseDemand: 7, hasTurnback: false, isTerminus: false, labelPos: 'left' },
   { id: 'CRH', code: 'CRH', name: 'Crossharbour', branch: 'South', x: 1040, y: 1415, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'left' },
   { id: 'MUD', code: 'MUD', name: 'Mudchute', branch: 'South', x: 1040, y: 1500, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'left' },
   { id: 'ISG', code: 'ISG', name: 'Island Gardens', branch: 'South', x: 1040, y: 1585, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'left' },
   // --- RIVER THAMES GREENWICH SUB-AQUEOUS BORE (y = 1650) ---
-  { id: 'CUT', code: 'CUT', name: 'Cutty Sark', branch: 'South', x: 1040, y: 1715, maxCars: 2, baseDemand: 8, hasTurnback: false, isTerminus: false, labelPos: 'left' },
-  { id: 'GRE', code: 'GRE', name: 'Greenwich', branch: 'South', x: 1040, y: 1800, maxCars: 3, baseDemand: 8, interchange: ['Southeastern', 'Thameslink'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
+  { id: 'CUT', code: 'CUT', name: 'Cutty Sark', branch: 'South', x: 1040, y: 1715, maxCars: 2, baseDemand: 8, interchange: ['River services · Greenwich Pier 300 m'], hasTurnback: false, isTerminus: false, labelPos: 'left' },
+  { id: 'GRE', code: 'GRE', name: 'Greenwich', branch: 'South', x: 1040, y: 1800, maxCars: 3, baseDemand: 8, interchange: ['National Rail · Southeastern / Thameslink'], hasTurnback: true, isTerminus: false, labelPos: 'left' },
   { id: 'DEP', code: 'DEP', name: 'Deptford Bridge', branch: 'South', x: 1040, y: 1885, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'left' },
   { id: 'ELV', code: 'ELV', name: 'Elverson Road', branch: 'South', x: 1040, y: 1970, maxCars: 2, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'left' },
-  { id: 'LEW', code: 'LEW', name: 'Lewisham', branch: 'South', x: 1040, y: 2055, maxCars: 3, baseDemand: 9, interchange: ['Southeastern'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
+  { id: 'LEW', code: 'LEW', name: 'Lewisham', branch: 'South', x: 1040, y: 2055, maxCars: 3, baseDemand: 9, interchange: ['National Rail · Southeastern'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
 
   // 6. BECKTON BRANCH (Lower Deck y = 700 -> Cyprus Loop x = 2980 -> Upper Deck y = 380 -> Beckton 4-Road Depot y = 115..215)
-  { id: 'RVC', code: 'RVC', name: 'Royal Victoria', branch: 'Beckton', x: 2080, y: 700, maxCars: 3, baseDemand: 6, interchange: ['IFS Cloud Cable Car'], hasTurnback: false, isTerminus: false, labelPos: 'top' },
-  { id: 'CUH', code: 'CUH', name: 'Custom House (ExCeL)', branch: 'Beckton', x: 2260, y: 700, maxCars: 3, baseDemand: 9, interchange: ['Elizabeth'], hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
+  { id: 'RVC', code: 'RVC', name: 'Royal Victoria', branch: 'Beckton', x: 2080, y: 700, maxCars: 3, baseDemand: 6, interchange: ['London Cable Car · Royal Docks 250 m'], hasTurnback: false, isTerminus: false, labelPos: 'top' },
+  { id: 'CUH', code: 'CUH', name: 'Custom House (ExCeL)', branch: 'Beckton', x: 2260, y: 700, maxCars: 3, baseDemand: 9, interchange: ['Elizabeth line'], hasTurnback: true, isTerminus: false, labelPos: 'bottom' },
   { id: 'PRR', code: 'PRR', name: 'Prince Regent', branch: 'Beckton', x: 2480, y: 700, maxCars: 3, baseDemand: 6, hasTurnback: true, isTerminus: false, labelPos: 'top' },
   { id: 'RAL', code: 'RAL', name: 'Royal Albert', branch: 'Beckton', x: 2660, y: 700, maxCars: 3, baseDemand: 4, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
   { id: 'BKP', code: 'BKP', name: 'Beckton Park', branch: 'Beckton', x: 2840, y: 700, maxCars: 3, baseDemand: 3, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
@@ -60,12 +61,12 @@ export const STATIONS: Station[] = [
   { id: 'BDP', code: 'BDP', name: 'Beckton Depot', branch: 'Beckton', x: 2600, y: 215, maxCars: 3, baseDemand: 1, hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
 
   // 7. WOOLWICH ARSENAL BRANCH (North Bank y = 980 -> UNDER River Thames y = 1120 -> Sub-Surface Woolwich Arsenal y = 1260)
-  { id: 'WSV', code: 'WSV', name: 'West Silvertown', branch: 'Woolwich', x: 2080, y: 980, maxCars: 3, baseDemand: 5, hasTurnback: false, isTerminus: false, labelPos: 'top' },
-  { id: 'PDK', code: 'PDK', name: 'Pontoon Dock', branch: 'Woolwich', x: 2260, y: 980, maxCars: 3, baseDemand: 6, hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
-  { id: 'LCA', code: 'LCA', name: 'London City Airport', branch: 'Woolwich', x: 2460, y: 980, maxCars: 3, baseDemand: 9, hasTurnback: true, isTerminus: false, labelPos: 'top' },
-  { id: 'KGV', code: 'KGV', name: 'King George V', branch: 'Woolwich', x: 2660, y: 980, maxCars: 3, baseDemand: 5, hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  { id: 'WSV', code: 'WSV', name: 'West Silvertown', branch: 'Woolwich', x: 2080, y: 980, maxCars: 3, baseDemand: 5, interchange: ['River services · Royal Wharf Pier 650 m'], hasTurnback: false, isTerminus: false, labelPos: 'top' },
+  { id: 'PDK', code: 'PDK', name: 'Pontoon Dock', branch: 'Woolwich', x: 2260, y: 980, maxCars: 3, baseDemand: 6, interchange: ['River services · Royal Wharf Pier 750 m'], hasTurnback: false, isTerminus: false, labelPos: 'bottom' },
+  { id: 'LCA', code: 'LCA', name: 'London City Airport', branch: 'Woolwich', x: 2460, y: 980, maxCars: 3, baseDemand: 9, interchange: ['London City Airport'], hasTurnback: true, isTerminus: false, labelPos: 'top' },
+  { id: 'KGV', code: 'KGV', name: 'King George V', branch: 'Woolwich', x: 2660, y: 980, maxCars: 3, baseDemand: 5, interchange: ['Woolwich Ferry · North Pier 600 m'], hasTurnback: true, isTerminus: false, labelPos: 'top' },
   // --- RIVER THAMES WOOLWICH SUB-AQUEOUS BORE (y = 1120) ---
-  { id: 'WOO', code: 'WOO', name: 'Woolwich Arsenal', branch: 'Woolwich', x: 2780, y: 1260, maxCars: 3, baseDemand: 9, interchange: ['Elizabeth', 'Southeastern'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
+  { id: 'WOO', code: 'WOO', name: 'Woolwich Arsenal', branch: 'Woolwich', x: 2780, y: 1260, maxCars: 3, baseDemand: 9, interchange: ['National Rail · Southeastern / Thameslink', 'Elizabeth line · Woolwich 250 m', 'River services · Royal Arsenal Woolwich Pier 650 m'], hasTurnback: true, isTerminus: true, labelPos: 'bottom' },
 ];
 
 export const STATION_MAP: Record<string, Station> = {};
@@ -782,6 +783,19 @@ export function buildNetworkGraph(): { nodes: TrackNode[]; edges: TrackEdge[] } 
   addBiLink('WOO_UP', 'WOO_HSH', 135, 15, true);
   addBiLink('WOO_DN', 'WOO_HSH', 135, 15, true);
 
+  // Pair actual parallel roads by both endpoints. A siding or a flyover crossing
+  // the schematic shares neither the same pair of roads nor the same sightline.
+  const links = new Map(edges.map(edge => [edge.from + '>' + edge.to, edge]));
+  for (const edge of edges) {
+    if (edge.isCrossover) continue;
+    const suffix = edge.from.endsWith('_UP') ? '_UP' : '_DN';
+    if (!edge.from.endsWith(suffix) || !edge.to.endsWith(suffix)) continue;
+    const other = suffix === '_UP' ? '_DN' : '_UP';
+    const from = edge.to.slice(0, -3) + other;
+    const to = edge.from.slice(0, -3) + other;
+    const paired = links.get(from + '>' + to);
+    if (paired && !paired.isCrossover) edge.oppositeEdgeId = paired.id;
+  }
   return { nodes, edges };
 }
 

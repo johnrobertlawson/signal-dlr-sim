@@ -11,6 +11,9 @@ import {
 import { STATIONS, STATION_MAP, buildNetworkGraph, INITIAL_TEMPLATES, CONTINGENCY_PLANS } from './dlrData';
 import { soundEngine } from './audio';
 
+import { Airport, dayAt } from './airport';
+import { demandFactor, entriesPerSecond } from './platformDemand';
+
 export class DLRSimulation {
   public stations: Station[] = STATIONS;
   public nodes: TrackNode[] = [];
@@ -66,6 +69,47 @@ export class DLRSimulation {
   // Dynamic crowd multipliers per station (e.g., ExCeL show, Airport surge, Canary Wharf convention)
   public stationCrowdMultiplier: Record<string, number> = {};
 
+  public airport = new Airport('MON', this.simTimeSeconds);
+  private waiting: Record<string, number> = {};
+  private forAirport: Record<string, number> = {};
+  private loadingShift = false;
+
+  public platformWaiting(node: string) {
+    return Math.floor(this.waiting[node] ?? 0) + Math.floor(this.forAirport[node] ?? 0);
+  }
+
+  private growQueues(from: number, to: number) {
+    const factor = demandFactor(dayAt(this.simDayName, to), to) * (to - from);
+    for (const st of this.stations) {
+      const influx = entriesPerSecond(st.id) * factor * this.stationCrowdMultiplier[st.id];
+      // Single-ended branches collect their departing passengers on the outward road.
+      const upShare = ['WOO', 'LEW', 'BCK'].includes(st.id) ? 1
+        : ['BNK', 'TWG', 'STI'].includes(st.id) ? 0 : 0.5;
+      this.waiting[st.id + '_UP'] += influx * upShare;
+      this.waiting[st.id + '_DN'] += influx * (1 - upShare);
+    }
+    const flow = this.airport.railFlows(from, to);
+    this.waiting.LCA_UP += flow.arrivals * 0.8;
+    this.waiting.LCA_DN += flow.arrivals * 0.2;
+    this.forAirport.CNT_DN += flow.departures * 0.8;
+    this.forAirport.WOO_UP += flow.departures * 0.2;
+  }
+
+  private boardWaiting(train: Train, node: string) {
+    const space = train.maxCapacity - train.passengers;
+    const airport = train.routeQueue.includes('LCA') ? Math.min(space, Math.floor(this.forAirport[node] ?? 0)) : 0;
+    if (airport) this.forAirport[node] -= airport;
+    train.airportPassengers = (train.airportPassengers ?? 0) + airport;
+    const local = Math.min(space - airport, Math.floor(this.waiting[node] ?? 0));
+    if (local) this.waiting[node] -= local;
+    const boarded = local + airport;
+    train.passengers += boarded;
+    this.totalPassengersCarried += boarded;
+    const station = this.nodeMap[node].stationId!;
+    this.stationFootfall[station] = (this.stationFootfall[station] ?? 0) + boarded;
+    return boarded;
+  }
+
   public onStateChange?: () => void;
 
   constructor() {
@@ -95,7 +139,7 @@ export class DLRSimulation {
     const hh = Math.floor(totalSec / 3600).toString().padStart(2, '0');
     const mm = Math.floor((totalSec % 3600) / 60).toString().padStart(2, '0');
     const ss = Math.floor(totalSec % 60).toString().padStart(2, '0');
-    return `${this.simDayName} ${hh}:${mm}:${ss}`;
+    return `${dayAt(this.simDayName, sec)} ${hh}:${mm}:${ss}`;
   }
 
   public addLog(category: LogEntry['category'], message: string) {
@@ -224,6 +268,7 @@ export class DLRSimulation {
 
   // Switch between Operating Shift Time Presets (Default: MON 05:25 — 5m before 05:30 First Train!)
   public loadShiftPreset(preset: 'MON_0525' | 'MON_0730' | 'SAT_1300' | 'FRI_2355') {
+    this.loadingShift = true;
     this.shiftPreset = preset;
     this.trains = [];
     this.incidents = [];
@@ -465,6 +510,13 @@ export class DLRSimulation {
       this.addLog('TIMETABLE', 'SHIFT LOADED: Friday 23:55:00 Late-Night Shutdown & Multi-Road Depot Stabling Run-In.');
     }
 
+    this.airport = new Airport(this.simDayName, this.simTimeSeconds);
+    this.forAirport = { CNT_DN: 0, WOO_UP: 0 };
+    for (const st of this.stations) {
+      this.waiting[st.id + '_UP'] = this.waiting[st.id + '_DN'] = 0;
+    }
+    this.growQueues(this.simTimeSeconds - 180, this.simTimeSeconds);
+    this.loadingShift = false;
     this.onStateChange?.();
   }
 
@@ -559,7 +611,7 @@ export class DLRSimulation {
     const firstEdge = nextNodeId ? this.findEdge(startNodeId, nextNodeId) : null;
 
     const maxCap = tpl.cars === 3 ? 780 : 520;
-    const initPax = tpl.isECS ? 0 : Math.floor(85 + Math.random() * 240);
+    const initPax = tpl.isECS || !this.loadingShift ? 0 : Math.floor(85 + Math.random() * 240);
 
     const train: Train = {
       id: `TR_${serviceNumber}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -588,6 +640,9 @@ export class DLRSimulation {
       breakdownReason: customReason,
     };
 
+    if (!this.loadingShift && !train.isECS && nextNodeId && this.nodeMap[startNodeId]?.type === 'platform') {
+      this.boardWaiting(train, startNodeId);
+    }
     this.trains.push(train);
     return train;
   }
@@ -673,7 +728,13 @@ export class DLRSimulation {
   public tick(dtRealSeconds: number) {
     if (this.timeScale <= 0) return;
     const dtSim = dtRealSeconds * this.timeScale;
+    const before = Math.floor(this.simTimeSeconds);
     this.simTimeSeconds += dtSim;
+    const now = Math.floor(this.simTimeSeconds);
+    if (now > before) {
+      this.airport.advance(now);
+      this.growQueues(before, now);
+    }
 
     // 1. Check automatic timetable spawning
     this.updateTimetableSpawns();
@@ -874,6 +935,7 @@ export class DLRSimulation {
     // Arrived at next node!
     if (train.edgeProgress >= 1.0) {
       const prevSpeed = train.speedMph;
+      train.previousEdgeId = edge.id;
       train.currentNodeId = train.nextNodeId;
       train.nodePath.shift();
       train.edgeProgress = 0;
@@ -882,7 +944,8 @@ export class DLRSimulation {
       const isPassThroughJunction = arrivedNode?.type === 'junction';
       const arrivedStId = arrivedNode?.stationId;
 
-      if (!isPassThroughJunction && arrivedStId && train.routeQueue[0] === arrivedStId) {
+      const scheduledCall = arrivedStId === train.routeQueue[0];
+      if (!isPassThroughJunction && arrivedStId && scheduledCall) {
         train.routeQueue.shift();
       }
 
@@ -924,17 +987,21 @@ export class DLRSimulation {
         // Check platform length alert (3-car train at 2-car platform like Cutty Sark / Elverson Rd)
         const selectiveDoorPenalty = train.cars === 3 && st && st.maxCars === 2 ? 6 : 0;
 
-        if (!train.isECS && st && arrivedNode?.type === 'platform') {
-          const alighting = Math.floor(train.passengers * (0.18 + Math.random() * 0.25));
-          const boarding = Math.floor(st.baseDemand * 11 * crowdMult * (0.7 + Math.random() * 0.6));
-          train.passengers = Math.min(train.maxCapacity, Math.max(0, train.passengers - alighting + boarding));
-          this.totalPassengersCarried += boarding;
-          this.stationFootfall[arrivedStId] = (this.stationFootfall[arrivedStId] || 0) + boarding + alighting;
+        let exchanged = 0;
+        if (!train.isECS && st && arrivedNode?.type === 'platform' && (scheduledCall || train.nodePath.length <= 1)) {
+          const terminal = train.nodePath.length <= 1 || !train.routeQueue.length;
+          const airport = train.airportPassengers ?? 0;
+          const throughAirport = !terminal && train.routeQueue.includes('LCA') ? airport : 0;
+          const local = train.passengers - airport;
+          const alighted = terminal ? train.passengers : Math.floor(local * (0.18 + Math.random() * 0.25)) + airport - throughAirport;
+          train.airportPassengers = throughAirport;
+          train.passengers -= alighted;
+          this.stationFootfall[arrivedStId] += alighted;
+          exchanged = alighted + (terminal ? 0 : this.boardWaiting(train, arrivedNode.id));
         }
 
-        const baseDwell = train.isECS
-          ? 4
-          : Math.round((13 + (st ? st.baseDemand * 0.8 : 4)) * crowdMult) + selectiveDoorPenalty;
+        const baseDwell = train.isECS ? 4
+          : Math.round(13 * crowdMult + exchanged / (train.cars * 2.5)) + selectiveDoorPenalty;
         train.dwellRemaining = baseDwell;
         train.state = train.nodePath.length <= 1 ? 'TURNBACK' : 'DWELLING';
 
@@ -1508,7 +1575,7 @@ export class DLRSimulation {
       const hubs = [
         { id: 'CAW', event: 'Canary Wharf Financial Summit Let-Out', boost: 'BANKING_CAW' },
         { id: 'CUH', event: 'ExCeL London Convention Hall Exit Surge', boost: 'EXCEL_CUH' },
-        { id: 'LCA', event: 'London City Airport Wide-Body Arrival Wave', boost: 'LCA' },
+        { id: 'LCA', event: 'London City Airport Terminal Exit Surge', boost: 'LCA' },
       ];
       const pick = hubs[Math.floor(Math.random() * hubs.length)];
       this.stationCrowdMultiplier[pick.id] = 1.85;

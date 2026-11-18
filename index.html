@@ -124,6 +124,7 @@
           <div id="tip-desk" popover="hint" class="terse-tip">
             <strong>DUAL-MONITOR COMMAND DESK</strong> · Pops out a dedicated second window with a live Full-Fleet CBTC Table, Solari Split-Flap Board, Station Engineering Fact Sheet &amp; Micro-Schematic, and Performance Analytics while expanding this window to a 100% full-screen Track Schematic Wall!
           </div>
+          <button type="button" id="open-fleet-camera" class="util-btn desk-popout-btn" title="Open the fleet camera on a third monitor">3RD MONITOR CAMERA ↗</button>
           <button type="button" id="toggle-audio-btn" class="util-btn" title="Mute / Unmute Synthesized IECC & Split-Flap Audio">
             🔊
           </button>
@@ -225,6 +226,7 @@
             <select id="canvas-station-jump-select" class="canvas-jump-select" aria-label="Jump to any Station or Depot">
               <option value="">📍 Jump to Station / Depot…</option>
             </select>
+            <button type="button" class="nav-chip-btn" id="lcy-focus" title="Focus London City Airport station, runway camera and flight board">✈ LCY</button>
             <button type="button" class="nav-chip-btn" id="canvas-zoom-out-btn" title="Zoom Out (-)">－</button>
             <button type="button" class="nav-chip-btn" id="canvas-zoom-in-btn" title="Zoom In (+)">＋</button>
             <button type="button" class="nav-chip-btn" data-jump-sector="FULL" title="Fit Entire 7-Branch DLR Network [Key 0]">⌖ FIT</button>
@@ -317,6 +319,14 @@
               </div>
             </div>
             <div id="station-split-flap-rows" class="split-flap-board"></div>
+            <section id="lcy-board" hidden aria-label="London City Airport simulated flight information">
+              <header><h4>LCY · Flight information</h4><small>SIMULATED</small></header>
+              <canvas width="384" height="216" aria-label="LCY fixed runway camera viewed from the station"></canvas>
+              <table><thead><tr><th>Flight</th><th>From / To</th><th>Due</th><th>Status</th></tr></thead><tbody></tbody></table>
+              <p id="lcy-transfer-count"></p>
+              <footer><button type="button" id="lcy-delay" class="util-btn">Delay flight bank 15 min</button>
+              <a href="https://www.londoncityairport.com/flight-info/departures-arrivals" target="_blank" rel="noopener">Official LCY board ↗</a></footer>
+            </section>
           </section>
 
           <!-- Selected Train / Unit Control Inspector -->
@@ -334,6 +344,7 @@
               </div>
               <span id="selected-train-state" class="train-state-pill">STANDBY</span>
             </div>
+            <div id="inspector-fleet-camera" hidden></div>
             <div id="train-inspector-body" class="train-inspector-body">
               <p class="muted-hint">Click any moving or dwelling train berth on the schematic to inspect passenger load, dispatch a PSA for 18 mph manual recovery, or divert to an alternate terminus.</p>
             </div>
@@ -450,6 +461,6 @@
         </div>
       </dialog>
     </div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/boot.ts"></script>
   </body>
 </html>

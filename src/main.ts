@@ -5,6 +5,8 @@ import { Station, Train } from './types';
 import { soundEngine } from './audio';
 import { ObserveController, ObserveFocus, ObservePace } from './observeController';
 import { getStationFactSheet, renderStationMicroSchematicSVG } from './stationFactSheets';
+import { mountAirportBoard } from './airportBoard';
+import { mountInspectorCamera } from './fleetCamera';
 import { mountSecondMonitorDesk } from './telemetryDesk';
 
 const sim = new DLRSimulation();
@@ -26,6 +28,7 @@ const contingencyPlansList = document.getElementById('contingency-plans-list')!;
 
 const selectedStationTitle = document.getElementById('selected-station-title')!;
 const selectedStationBadges = document.getElementById('selected-station-badges')!;
+const airportBoard = mountAirportBoard(sim);
 const stationSplitFlapRows = document.getElementById('station-split-flap-rows')!;
 
 const selectedTrainTitle = document.getElementById('selected-train-title')!;
@@ -389,11 +392,12 @@ function renderActionInset() {
 // Render Solari Split-Flap Station Departure Board (diff-updated so rows only flip when their text actually changes!)
 function renderStationBoard(forceFlipAll = false) {
   const st: Station = schematic.selectedStation || STATION_MAP['CAW'];
+  airportBoard.refresh(st.id);
   selectedStationTitle.textContent = `${st.code} · ${st.name}`;
   const crowdMult = sim.stationCrowdMultiplier[st.id] || 1.0;
   selectedStationBadges.textContent = `${st.maxCars}-CAR MAX · ${st.hasTurnback ? 'TURNBACK' : 'THROUGH'}${
-    crowdMult > 1.3 ? ' · HIGH CROWD' : ''
-  }`;
+    crowdMult > 1.3 ? ' · HIGH DEMAND' : ''
+  } · ${sim.platformWaiting(st.id+'_UP') + sim.platformWaiting(st.id+'_DN')} WAITING`;
 
   const stationChanged = lastStationBoardStationId !== st.id || forceFlipAll;
   lastStationBoardStationId = st.id;
@@ -911,7 +915,9 @@ schematic.onOpenStationFactSheet = (st: Station) => {
   openStationFactSheet(st);
 };
 
-schematic.onSelectTrain = (tr: Train) => {
+schematic.onSelectTrain = () => {
+  refreshCamera?.();
+  document.getElementById('inspector-fleet-camera')?.scrollIntoView({ block: 'nearest' });
   soundEngine.playRelayClick(true);
   renderTrainInspector(true);
   renderDynamicHotkeyBar();
@@ -972,6 +978,11 @@ document.querySelectorAll<HTMLButtonElement>('.nav-chip-btn[data-jump-sector]').
     activateSectorView(sec);
   });
 });
+
+document.getElementById('lcy-focus')!.onclick = () => {
+  window.__dlrSimBridge?.focusStationOnMainMap('LCA');
+  document.getElementById('lcy-board')!.scrollIntoView({block: 'nearest'});
+};
 
 document.getElementById('canvas-zoom-in-btn')?.addEventListener('click', () => {
   schematic.zoomBy(1.18);
@@ -1316,6 +1327,10 @@ popoutDeskBtn?.addEventListener('click', () => {
 
   const url = `${window.location.origin}${window.location.pathname}?mode=desk`;
   deskPopupWin = window.open(url, 'dlr_telemetry_desk', 'popup,width=1440,height=920');
+  if (!deskPopupWin) {
+    nxStatusText.textContent = 'Allow pop-up windows for this simulator to open the telemetry desk.';
+    return;
+  }
   setMapWallMode(true);
   soundEngine.playSplitFlap(6);
   nxStatusText.textContent = '2ND MONITOR TELEMETRY DESK ACTIVE · Monitor 1 Expanded to 100% Schematic Wall (Click 📥 DOCK SIDEBAR to restore)';
@@ -1340,6 +1355,7 @@ if (autopilotStartupSwitch) {
 // If this window was opened with ?mode=desk, mount the 4-Quadrant Second-Monitor Data Dashboard!
 const urlParams = new URLSearchParams(window.location.search);
 const isDeskWindow = urlParams.get('mode') === 'desk';
+const refreshCamera = isDeskWindow ? null : mountInspectorCamera({ sim, schematic }, nxStatusText);
 const startInAutopilot =
   !isDeskWindow &&
   (urlParams.get('mode') === 'autopilot' ||
@@ -1372,6 +1388,7 @@ function animate(now: number) {
   sim.tick(dt);
   observe.tick(dt);
   schematic.render();
+  airportBoard.draw(now);
 
   if (observe.active && observeCountdownProgress && observeCountdownLabel) {
     observeCountdownProgress.value = observe.getRemainingPercentage();
@@ -1381,6 +1398,7 @@ function animate(now: number) {
   uiRefreshAccumulator += dt;
   if (uiRefreshAccumulator >= 0.45) {
     uiRefreshAccumulator = 0;
+    if (deskPopupWin?.closed) window.__dlrSimBridge?.onDeskClosed();
     simClockFlap.textContent = sim.formatSimTime();
     const metrics = sim.getPerformanceMetrics();
     ppmFlap.textContent = `${metrics.ppm.toFixed(1)}%`;
