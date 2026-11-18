@@ -3,7 +3,12 @@ import { SchematicCanvas } from './schematicCanvas';
 import { STATION_MAP } from './dlrData';
 import { soundEngine } from './audio';
 
-export type ObserveFocus = 'BALANCED' | 'CRISIS_RECOVERY' | 'DLR_LORE_STATS' | 'TIMETABLE_MASTERY';
+export type ObserveFocus =
+  | 'HELP_ME_FIX_IT'
+  | 'BALANCED'
+  | 'CRISIS_RECOVERY'
+  | 'DLR_LORE_STATS'
+  | 'TIMETABLE_MASTERY';
 export type ObservePace = 'RELAXED' | 'NORMAL' | 'BRISK';
 
 export interface ObserveCallout {
@@ -93,10 +98,21 @@ export class ObserveController {
     this.schematic = schematic;
   }
 
+  // 50% slower pace intervals so the user has ample time to read & follow every Co-Pilot move
   public getStepInterval(): number {
-    if (this.pace === 'RELAXED') return 9.5;
-    if (this.pace === 'BRISK') return 4.5;
-    return 6.8;
+    if (this.pace === 'RELAXED') return 14.3;
+    if (this.pace === 'BRISK') return 6.8;
+    return 10.2;
+  }
+
+  public getRemainingSeconds(): number {
+    return Math.max(0, this.getStepInterval() - this.stepTimerSeconds);
+  }
+
+  public getRemainingPercentage(): number {
+    const interval = this.getStepInterval();
+    if (interval <= 0) return 100;
+    return Math.max(0, Math.min(100, Math.round(((interval - this.stepTimerSeconds) / interval) * 100)));
   }
 
   public toggle(enable?: boolean) {
@@ -106,7 +122,6 @@ export class ObserveController {
 
     if (this.active) {
       this.savedTimeScale = this.sim.timeScale;
-      // Set simulation speed to a comfortable 1x (or 0.5x if paused) so the player can watch smoothly
       if (this.sim.timeScale === 0 || this.sim.timeScale > 4) {
         this.sim.timeScale = 1;
       }
@@ -121,6 +136,36 @@ export class ObserveController {
     }
 
     this.onUpdateUI?.();
+  }
+
+  // Dedicated "Help Me! Fix It!" mode where the AI takes charge and fixes what needs fixing (never injects new faults)
+  public engageHelpMeFixIt(fixAllImmediately = false) {
+    this.focus = 'HELP_ME_FIX_IT';
+    if (!this.active) {
+      this.active = true;
+      if (this.sim.timeScale === 0 || this.sim.timeScale > 4) {
+        this.sim.timeScale = 1;
+      }
+    }
+    this.stepTimerSeconds = 0;
+
+    if (fixAllImmediately) {
+      const res = this.sim.stabilizeNetworkAll();
+      const metrics = this.sim.getPerformanceMetrics();
+      this.currentCallout = {
+        title: `🆘 Help Me! Fix It! — Network Stabilised (${res.fixedCount} Fixed)`,
+        tag: 'CONTROLLER LOGIC',
+        rationale: `${res.summary} I have switched my focus to pure "Help Me! Fix It!" mode: I will actively watch all 7 branches, dispatch PSAs, and regulate headways without injecting any surprise disruptions.`,
+        statHighlight: `All Active Blocks Cleared · Network PPM: ${metrics.ppm}% · Active Fleet: ${metrics.activeTrainCount}`,
+        worldX: 810,
+        worldY: 500,
+      };
+      this.schematic.focusCoordinates(810, 500, 1.05);
+      this.onUpdateUI?.();
+      return;
+    }
+
+    this.executeNextControllerStep();
   }
 
   public tick(dtRealSeconds: number) {
@@ -141,18 +186,19 @@ export class ObserveController {
   private executeNextControllerStep() {
     const unresolved = this.sim.incidents.filter((i) => !i.resolved);
     const brokenTrains = this.sim.trains.filter((t) => t.state === 'BROKEN_DOWN');
+    const heldSignals = this.sim.nodes.filter((n) => n.signalHeld);
     const heavyDelayedTrains = this.sim.trains.filter(
-      (t) => t.delaySeconds > 95 && !t.diverted && t.state !== 'BROKEN_DOWN'
+      (t) => t.delaySeconds > 85 && !t.diverted && t.state !== 'BROKEN_DOWN'
     );
 
-    // 1. PRIORITY A: Resolve an active blocking incident or stalled VOBC train (unless player chose pure DLR_LORE_STATS and no critical block)
+    // 1. PRIORITY A: Resolve an active blocking incident or stalled VOBC train
     if (unresolved.length > 0 && (this.focus !== 'DLR_LORE_STATS' || Math.random() < 0.6)) {
       const inc = unresolved[0];
       const act = inc.actions[0];
 
       // Pan camera to the incident location
-      let wx = 720;
-      let wy = 560;
+      let wx = 810;
+      let wy = 500;
       if (inc.stationId && STATION_MAP[inc.stationId]) {
         const st = STATION_MAP[inc.stationId];
         wx = st.x;
@@ -178,7 +224,6 @@ export class ObserveController {
 
       this.schematic.focusCoordinates(wx, wy, 1.18);
 
-      // Explain logic BEFORE/AS we execute the fix
       let rationale = `We have a ${inc.severity.toLowerCase()} bottleneck: "${inc.title}". `;
       if (act?.effectType === 'DISPATCH_PSA') {
         rationale +=
@@ -201,7 +246,7 @@ export class ObserveController {
 
       const metrics = this.sim.getPerformanceMetrics();
       this.currentCallout = {
-        title: `Resolving: ${inc.title}`,
+        title: `🆘 Fixing: ${inc.title}`,
         tag: 'CONTROLLER LOGIC',
         rationale,
         statHighlight: `Action: ${act ? act.label : 'Cleared'} · Network PPM: ${metrics.ppm}%`,
@@ -214,14 +259,55 @@ export class ObserveController {
       return;
     }
 
-    // 2. PRIORITY B: If a train is heavily delayed (>95s) and we are in BALANCED, CRISIS_RECOVERY, or TIMETABLE_MASTERY, short-turn or regulate it
+    // 1b. If any train is still BROKEN_DOWN without an open incident, dispatch a PSA immediately
+    if (brokenTrains.length > 0 && this.focus !== 'DLR_LORE_STATS') {
+      const tr = brokenTrains[0];
+      const pos = this.schematic.getTrainWorldCoords(tr);
+      this.schematic.selectedTrain = tr;
+      this.schematic.focusCoordinates(pos.x, pos.y, 1.22);
+      this.sim.dispatchPsaToTrain(tr.id);
+      this.actionsTakenCount++;
+
+      this.currentCallout = {
+        title: `Recovering Stalled Unit ${tr.headcode} via PSA Key-In`,
+        tag: 'CONTROLLER LOGIC',
+        rationale: `Unit ${tr.headcode} was sitting stalled with a VOBC brake drop-out. I have dispatched the onboard PSA to manual-drive at 18 mph so the queue behind it can clear.`,
+        statHighlight: `PSA 18 mph Recovery Active · Cleared Block at ${tr.currentNodeId}`,
+        worldX: pos.x,
+        worldY: pos.y,
+        actionSummary: `PSA → ${tr.headcode}`,
+      };
+      this.onUpdateUI?.();
+      return;
+    }
+
+    // 1c. In HELP_ME_FIX_IT mode, release any forgotten manual red signal holds that are delaying traffic
+    if (this.focus === 'HELP_ME_FIX_IT' && heldSignals.length > 0) {
+      const sig = heldSignals[0];
+      this.sim.toggleSignalHold(sig.id);
+      this.actionsTakenCount++;
+      this.schematic.focusCoordinates(sig.x, sig.y, 1.2);
+
+      this.currentCallout = {
+        title: `Releasing Held Signal ${sig.id} (${sig.name})`,
+        tag: 'SIGNALLING MOVE',
+        rationale: `Signal ${sig.id} was manually held at RED, holding up approaching services. I have released it back to SelTrac automatic moving-block supervision.`,
+        statHighlight: `Restored Green Aspect at ${sig.id}`,
+        worldX: sig.x,
+        worldY: sig.y,
+        actionSummary: `Released ${sig.id}`,
+      };
+      this.onUpdateUI?.();
+      return;
+    }
+
+    // 2. PRIORITY B: If a train is heavily delayed (>85s), short-turn or regulate it
     if (heavyDelayedTrains.length > 0 && this.focus !== 'DLR_LORE_STATS') {
       const tr = heavyDelayedTrains[0];
       const pos = this.schematic.getTrainWorldCoords(tr);
       this.schematic.selectedTrain = tr;
       this.schematic.focusCoordinates(pos.x, pos.y, 1.22);
 
-      // Find an intermediate turnback station in its routeQueue
       const intermediateTurnback = tr.routeQueue
         .slice(0, -1)
         .find((stId) => STATION_MAP[stId]?.hasTurnback);
@@ -229,7 +315,10 @@ export class ObserveController {
       if (intermediateTurnback) {
         const oldDestName = STATION_MAP[tr.destCode]?.name || tr.destCode;
         const newDestName = STATION_MAP[intermediateTurnback]?.name || intermediateTurnback;
-        this.sim.rerouteTrainToDestination(tr, intermediateTurnback);
+        this.sim.rerouteTrainToDestination(
+          tr,
+          intermediateTurnback === 'CAW' ? 'CAW_MID' : intermediateTurnback
+        );
         this.actionsTakenCount++;
 
         this.currentCallout = {
@@ -237,7 +326,7 @@ export class ObserveController {
           tag: 'SIGNALLING MOVE',
           rationale: `Unit ${tr.serviceNumber} (bound for ${oldDestName}) is running +${Math.round(
             tr.delaySeconds
-          )}s late and bunching the headway behind it. A classic UK controller move is to short-turn it at ${newDestName}'s crossover so it re-enters the return working on time.`,
+          )}s late and bunching the headway behind it. A classic UK controller move is to short-turn it at ${newDestName}'s turnback road so it re-enters the return working on time.`,
           statHighlight: `Saved ~${Math.round(tr.delaySeconds * 0.7)}s Turnaround Delay · Load: ${tr.passengers} pax`,
           worldX: pos.x,
           worldY: pos.y,
@@ -248,9 +337,9 @@ export class ObserveController {
       }
     }
 
-    // 3. PRIORITY C: If focus is CRISIS_RECOVERY and there are no active incidents, inject a realistic disruption so the master controller can demonstrate solving it next!
+    // 3. PRIORITY C: Only inject a demonstration disruption if focus is CRISIS_RECOVERY (or occasionally in BALANCED) — NEVER in HELP_ME_FIX_IT!
     if (
-      (this.focus === 'CRISIS_RECOVERY' || (this.focus === 'BALANCED' && Math.random() < 0.32)) &&
+      (this.focus === 'CRISIS_RECOVERY' || (this.focus === 'BALANCED' && Math.random() < 0.25)) &&
       unresolved.length === 0 &&
       brokenTrains.length === 0
     ) {

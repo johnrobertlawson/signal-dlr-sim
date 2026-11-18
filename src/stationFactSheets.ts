@@ -16,42 +16,43 @@ export interface StationFactSheet {
 
 const CUSTOM_FACT_SHEETS: Record<string, Partial<StationFactSheet>> = {
   BNK: {
-    tagline: 'Deep-Tube City Financial Terminus & Headshunt Bore',
-    structureType: 'Subterranean Bored Tube Tunnels (41m below King William Street)',
-    platformLayout: '2 Island Platforms (P9 & P10) with single-track tail headshunt overrun tunnel',
+    tagline: 'Deep-Tube City Financial Terminus & Tail Headshunt Bore (SOP-UG1 / UG2)',
+    structureType: 'Subterranean Bored Tube Tunnels (41m below King William Street · 1-in-20 Dive from Royal Mint St)',
+    platformLayout: '2 Island Tube Platforms (P9 & P10) + Single-Track Tail Headshunt Overrun Bore (BNK_HSH)',
     trackTopology: 'TERMINUS_HEADSHUNT',
     gotchas: [
-      'Single-bore headshunt behind platforms means only 1 train can reverse at a time; a stalled VOBC unit in the headshunt locks both platforms.',
-      'Steep 1-in-20 (5%) approach gradient from Shadwell requires strict CBTC braking margins.',
+      'SOP-UG1 (SINGLE TRAIN PER BORE): Underground fire safety prohibits a second train from entering the 1-in-20 Bank bore until the preceding train clears into P9/P10.',
+      'SOP-UG2 (HEADSHUNT OVERRUN): Because the approach tunnels are separate single-track tubes, trains reverse in the single-bore tail headshunt (BNK_HSH) behind P9/P10 — a stalled unit there locks both platforms.',
+      'During Plan B (Bank Lockout), 2-car sets divert to Tower Gateway while 3-car sets automatically short-turn at Shadwell (SHA).',
     ],
     advantages: [
       'Highest financial commuter yield on the network (Direct connection to Central, Northern, Waterloo & City lines, and Monument).',
-      'Cross-passage platform layout separates boarding and alighting surges cleanly.',
+      'Tail headshunt (BNK_HSH) allows arriving P9 trains to step forward and reverse onto P10 without fouling the approach crossover.',
     ],
     disadvantages: [
-      'Zero stabling capacity — every arriving train must clear back Eastbound within 90–120 seconds or queue backs up into Shadwell tunnel.',
+      'Zero long-term stabling capacity — every arriving train must clear back Eastbound within 90–120 seconds or queue backs up to Royal Mint St Junction (RMJ).',
       'Deep evacuation profile triggers immediate tunnel lockout (Plan B) if smoke sensors activate.',
     ],
-    operationalNotes: 'During Bank tunnel blockades, immediately activate Plan B (TWG Divert) to divert 2-car sets into Tower Gateway and short-turn 3-car sets at Shadwell.',
+    operationalNotes: 'During Bank tunnel blockades, activate Plan B (TWG / SHA Divert): 2-car units route into Tower Gateway and 3-car units reverse at Shadwell scissor crossover.',
   },
   TWG: {
-    tagline: 'Historic Brick Viaduct Terminus — Strictly 2-Car Restricted',
-    structureType: 'Elevated Victorian Brick Viaduct adjacent to Fenchurch Street',
-    platformLayout: 'Single Central Island Track with Spanish-Solution dual-side platforms (Boarding one side, Alighting the other)',
+    tagline: 'Historic Brick Viaduct Terminus — Strictly 2-Car Restricted (SOP-TWG)',
+    structureType: 'Elevated Victorian Brick Viaduct & Minories Single-Lead Throat adjacent to Fenchurch Street',
+    platformLayout: 'Single Central Track with Spanish-Solution dual-side platforms (North Face Alighting, South Face Boarding)',
     trackTopology: 'SHORT_PLATFORM_SDO',
     gotchas: [
-      'STRICT 2-CAR (60m) LIMIT: 3-car trains physically foul the entry points and cannot enter Tower Gateway!',
-      'Single terminal track means minimum 3.5-minute turnaround headway.',
+      'SOP-TWG (STRICT 2-CAR / 60m INTERLOCKING LOCKOUT): 3-car (90m) trains physically foul the Minories single-lead throat points! If you try to route a 3-car train to TWG, Royal Mint St Junction (RMJ) automatically rejects it and diverts it to Shadwell (SHA).',
+      'Single terminal lead (TWG_THROAT) means minimum 3.5-minute turnaround headway.',
     ],
     advantages: [
       'Spanish-solution doors on both sides of the train cut passenger exchange dwell times by 35%.',
-      'Vital relief valve when the deep-level Bank bore is closed.',
+      'Primary relief terminus for 2-car services when the deep-level Bank bore is closed under Plan B.',
     ],
     disadvantages: [
-      'Cannot accept 3-car B07/B23 formations — limits Beckton-Tower Gateway route capacity.',
-      'Single-track throat creates an immediate bottleneck if a train suffers a door fault.',
+      'Cannot accept 3-car B07/B23 formations — limits Beckton–Tower Gateway route capacity.',
+      'Single-track throat creates an immediate bottleneck if a train suffers a VOBC fault.',
     ],
-    operationalNotes: 'Keep 3xx Tower Gateway↔Beckton templates set to 2-Car stock unless diverting eastbound services to Bank.',
+    operationalNotes: 'Keep 3xx Tower Gateway↔Beckton templates set to 2-Car stock; any 3-car train diverted here will be intercepted by SOP-TWG and short-turned at Shadwell.',
   },
   SHA: {
     tagline: 'Western Throat Split & Emergency Turnback Crossover',
@@ -241,6 +242,42 @@ const CUSTOM_FACT_SHEETS: Record<string, Partial<StationFactSheet>> = {
       'Any track circuit drop in the Thames bore isolates Woolwich Arsenal completely from the rest of the network.',
     ],
     operationalNotes: 'Use Plan D (LCA Turnback) if the King George V – Woolwich Arsenal tunnel bore locks at RED.',
+  },
+  PDP: {
+    tagline: 'Poplar Operations & Control Centre — 3-Road Stabling & Lifting Shop Fan',
+    structureType: 'At-Grade Maintenance Yard, Diesel Worksite Sidings & Reception Throat (PDP_THROAT)',
+    platformLayout: 'Reception Lead + 3 Stabling & Workshop Roads (PDP_S1 Stabling A, PDP_S2 Stabling B, PDP_S3 Lifting Shop)',
+    trackTopology: 'DEPOT_YARD',
+    gotchas: [
+      'All 3 stabling roads funnel through the 15 mph Poplar Reception Throat (PDP_THROAT) onto the busy Poplar–Blackwall trunk.',
+      'During Monday 05:25 Cold Start, starter units must complete VOBC loop handshakes on PDP_S1–S3 before entering passenger service.',
+    ],
+    advantages: [
+      'Allows multiple ECS units to stable or reverse simultaneously on PDP_S1, PDP_S2, and PDP_S3 without blocking the main running line.',
+      'Directly adjacent to Poplar Control Centre for rapid peak-hour stock injection.',
+    ],
+    disadvantages: [
+      'Smaller stabling footprint than Beckton Depot — heavy overhauls must transfer east via 9xx ECS runs.',
+    ],
+    operationalNotes: 'You can route any train directly into PDP_S1, PDP_S2, or PDP_S3 using the Unit Inspector DIVERT dropdown or by clicking the depot road signal lamp.',
+  },
+  BDP: {
+    tagline: 'Primary Fleet Maintenance & 4-Road Stabling Complex (100+ Cars)',
+    structureType: 'Spacious At-Grade Yard with Dual East (Gallions Reach) & West (Beckton) Reception Ladders',
+    platformLayout: '4 Stabling & Maintenance Roads: BDP_R1 (North Stabling), BDP_R2 (Peak Ready), BDP_R3 (Wheel Lathe), BDP_R4 (East Wash & Reversing Loop)',
+    trackTopology: 'DEPOT_YARD',
+    gotchas: [
+      '15 mph yard speed limit across both East (BDP_E_LEAD) and West (BDP_W_LEAD) reception ladders.',
+      'Launching too many 9xx ECS trains simultaneously at 05:25 can bunch up at Gallions Reach (GAL) unless staggered.',
+    ],
+    advantages: [
+      'Dual-ended entry/exit ladders allow trains to enter from Gallions Reach (BDP_E_LEAD) and depart directly toward Beckton (BDP_W_LEAD) or vice versa.',
+      '4 independent roads (BDP_R1–R4) allow stabling and reversing of multiple trains simultaneously.',
+    ],
+    disadvantages: [
+      'Long positioning run required to reach Bank or Stratford compared to Poplar Depot.',
+    ],
+    operationalNotes: 'During the Monday 05:25 Cold Start or Friday 23:55 Run-In, watch trains dispatch and stable across BDP Roads 1–4.',
   },
 };
 

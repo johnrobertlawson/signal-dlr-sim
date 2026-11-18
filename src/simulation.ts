@@ -26,11 +26,15 @@ export class DLRSimulation {
   public logs: LogEntry[] = [];
 
   // Time & Simulation Speed
-  public simTimeSeconds: number = 7 * 3600 + 30 * 60; // 07:30:00 morning peak start
+  // Default: Monday 05:25:00 (5 minutes before the 05:30:00 first train wave rolls out of Beckton & Poplar Depots!)
+  public shiftPreset: 'MON_0525' | 'MON_0730' | 'SAT_1300' | 'FRI_2355' = 'MON_0525';
+  public simDayName: string = 'MON';
+  public simTimeSeconds: number = 5 * 3600 + 25 * 60; // 05:25:00 Monday Cold Start
   public timeScale: number = 1; // 0 = Pause, 0.5 = Slow, 1 = Normal, 4 = Fast, 10 = Ultra
   public arsEnabled: boolean = true;
   public showCbtcOverlays: boolean = true;
   public singleLineWorkingActive: boolean = true; // Bi-directional SLW around blocked tracks
+  public undergroundSopActive: boolean = true; // SOP-UG1 (Single train per deep bore) & SOP-TWG (Strict 2-car 60m lockout)
 
   // Telemetry & Analytics
   public totalArrivals: number = 42;
@@ -79,13 +83,11 @@ export class DLRSimulation {
     }
 
     for (const st of this.stations) {
-      this.stationFootfall[st.id] = Math.floor(st.baseDemand * 180 + Math.random() * 90);
+      this.stationFootfall[st.id] = Math.floor(st.baseDemand * 90 + Math.random() * 45);
       this.stationCrowdMultiplier[st.id] = 1.0;
     }
 
-    this.seedInitialTrains();
-    this.seedInitialIncidents();
-    this.addLog('ARS', 'SelTrac CBTC Moving-Block Supervision & ARS initialised across all 7 DLR branches.');
+    this.loadShiftPreset('MON_0525');
   }
 
   public formatSimTime(sec = this.simTimeSeconds): string {
@@ -93,7 +95,7 @@ export class DLRSimulation {
     const hh = Math.floor(totalSec / 3600).toString().padStart(2, '0');
     const mm = Math.floor((totalSec % 3600) / 60).toString().padStart(2, '0');
     const ss = Math.floor(totalSec % 60).toString().padStart(2, '0');
-    return `${hh}:${mm}:${ss}`;
+    return `${this.simDayName} ${hh}:${mm}:${ss}`;
   }
 
   public addLog(category: LogEntry['category'], message: string) {
@@ -108,9 +110,26 @@ export class DLRSimulation {
     }
   }
 
-  // Dijkstra shortest path between two TrackNodes, considering train car length & blocked tracks
-  public findNodePath(startNodeId: string, targetStationId: string, cars: 2 | 3, allowSLW = true): string[] {
-    const targetCandidates = [`${targetStationId}_DN`, `${targetStationId}_UP`];
+  // Dijkstra shortest path between two TrackNodes, considering train car length, SOP-TWG, & multi-road depot stabling
+  public findNodePath(startNodeId: string, targetStationOrNodeId: string, cars: 2 | 3, allowSLW = true): string[] {
+    const occupiedNodes = new Set(this.trains.map((t) => t.currentNodeId));
+
+    // Support both station IDs (e.g. 'BDP', 'PDP', 'CAW', 'BNK') and direct road/siding node IDs (e.g. 'BDP_R1', 'CAW_MID', 'BNK_HSH')
+    let targetCandidates: string[] = [];
+    if (this.nodeMap[targetStationOrNodeId]) {
+      targetCandidates = [targetStationOrNodeId];
+    } else {
+      const stationNodes = this.nodes
+        .filter((n) => n.stationId === targetStationOrNodeId)
+        .map((n) => n.id);
+      // Prefer unoccupied platform/siding/depot roads so multiple trains can stable or reverse simultaneously!
+      const freeStationNodes = stationNodes.filter((id) => !occupiedNodes.has(id));
+      targetCandidates =
+        freeStationNodes.length > 0
+          ? freeStationNodes
+          : [`${targetStationOrNodeId}_DN`, `${targetStationOrNodeId}_UP`, ...stationNodes];
+    }
+
     const dist: Record<string, number> = {};
     const prev: Record<string, string | null> = {};
     const visited = new Set<string>();
@@ -162,14 +181,17 @@ export class DLRSimulation {
           cost *= 0.1; // Prioritise player's explicit NX route
         }
         if (edge.isCrossover) {
-          cost += 400; // Prefer staying on main running line unless turning back or SLW diverting
+          cost += 360; // Prefer staying on main running line unless turning back, stabling, or SLW diverting
+        }
+        if (occupiedNodes.has(edge.to) && targetCandidates.includes(edge.to)) {
+          cost += 1200; // Prefer unoccupied stabling/turnback road at target station/depot
         }
         if (nextNode.trackBlocked) {
           cost += 50000; // Avoid blocked tracks if alternate SLW track exists
         }
-        // Platform car length restriction check at terminus (e.g. Tower Gateway is 2-car max!)
-        if (nextNode.stationId === 'TWG' && cars > 2) {
-          cost += 100000; // 3-car trains cannot enter Tower Gateway
+        // SOP-TWG: Platform car length restriction check at Tower Gateway & Minories Throat (strictly 2-car 60m max!)
+        if ((nextNode.stationId === 'TWG' || nextNode.maxCars === 2) && nextNode.stationId === 'TWG' && cars > 2) {
+          cost += 100000; // 3-car trains physically foul Minories points and cannot enter Tower Gateway
         }
 
         const alt = dist[u] + cost;
@@ -200,27 +222,275 @@ export class DLRSimulation {
     return fullPath;
   }
 
+  // Switch between Operating Shift Time Presets (Default: MON 05:25 — 5m before 05:30 First Train!)
+  public loadShiftPreset(preset: 'MON_0525' | 'MON_0730' | 'SAT_1300' | 'FRI_2355') {
+    this.shiftPreset = preset;
+    this.trains = [];
+    this.incidents = [];
+    this.manualRoutes = {};
+
+    for (const n of this.nodes) {
+      n.trackBlocked = false;
+      n.pointsFailed = false;
+      n.signalHeld = false;
+      n.signalAspect = 'GREEN';
+    }
+    for (const c of this.contingencies) {
+      c.active = false;
+    }
+    for (const st of this.stations) {
+      this.stationCrowdMultiplier[st.id] = 1.0;
+    }
+
+    if (preset === 'MON_0525') {
+      // Monday 05:25:00 — 5 minutes before the 05:30:00 first train wave!
+      this.simDayName = 'MON';
+      this.simTimeSeconds = 5 * 3600 + 25 * 60; // 05:25:00
+      this.totalArrivals = 4;
+      this.onTimeArrivals = 4;
+      this.totalPassengersCarried = 620;
+      for (const st of this.stations) {
+        this.stationFootfall[st.id] = Math.floor(st.baseDemand * 22);
+      }
+
+      // Seed stabled units across Beckton Depot Roads 1-4, Poplar Depot Roads 1-3, Bank Headshunt, and Termini
+      const tplBnkLew = this.templates[0];
+      const tplBnkWoo = this.templates[1];
+      const tplTwgBck = this.templates[2];
+      const tplStrLew = this.templates[3];
+      const tplStiWoo = this.templates[4];
+      const tplEcs = this.templates[5];
+
+      const spawnStabled = (
+        tpl: ServiceTemplate,
+        startNode: string,
+        route: string[],
+        dwellSec: number,
+        reason?: string
+      ) => {
+        const tr = this.spawnTrainFromRoute(tpl, startNode, route, route[route.length - 1], reason);
+        if (tr) {
+          tr.dwellRemaining = dwellSec;
+          tr.delaySeconds = 0;
+          tr.passengers = tpl.isECS ? 0 : Math.floor(25 + Math.random() * 65);
+        }
+        return tr;
+      };
+
+      // 4 Units Stabled in Beckton Depot Multi-Road Fan (BDP_R1, BDP_R2, BDP_R3, BDP_R4) rolling out for 05:30 service
+      spawnStabled(tplEcs, 'BDP_R1', ['BDP', 'GAL', 'CYP', 'BKP', 'RAL', 'PRR', 'CUH', 'RVC', 'CNT', 'EIR', 'BLW', 'POP', 'WIQ', 'CAW'], 8, '05:25 Pre-Dawn ECS Roll-Out from Beckton Rd 1');
+      spawnStabled(tplTwgBck, 'BDP_R2', ['BDP', 'GAL', 'CYP', 'BKP', 'RAL', 'PRR', 'CUH', 'RVC', 'CNT', 'EIR', 'BLW', 'POP', 'WFE', 'LIM', 'SHA', 'TWG'], 22, '2-Car Starter Unit Launching from Beckton Rd 2');
+      spawnStabled(tplBnkLew, 'BDP_R3', ['BDP', 'GAL', 'BCK'], 38, 'Positioning from Beckton Rd 3 to Beckton P1');
+      spawnStabled(tplEcs, 'BDP_R4', ['BDP', 'GAL', 'CYP', 'BKP', 'RAL', 'PRR', 'CUH', 'RVC', 'CNT'], 55, 'Beckton Rd 4 Wash Loop → Canning Town Starter');
+
+      // 3 Units Stabled in Poplar Depot Multi-Road Fan (PDP_S1, PDP_S2, PDP_S3)
+      spawnStabled(tplBnkWoo, 'PDP_S1', ['PDP', 'POP', 'BLW', 'EIR', 'CNT', 'WSV', 'PDK', 'LCA', 'KGV', 'WOO'], 10, 'Poplar Rd 1 Starter → Woolwich Arsenal');
+      spawnStabled(tplStrLew, 'PDP_S2', ['PDP', 'POP', 'WIQ', 'CAW', 'HER', 'SQY', 'CRH', 'MUD', 'ISG', 'CUT', 'GRE', 'DEP', 'ELV', 'LEW'], 26, 'Poplar Rd 2 Starter → Canary Wharf & Lewisham');
+      spawnStabled(tplBnkLew, 'PDP_S3', ['PDP', 'POP', 'WFE', 'LIM', 'SHA', 'BNK'], 45, 'Poplar Rd 3 Starter → Bank Deep-Tube Bore');
+
+      // Early-bird units warming up in Bank Tail Headshunt, Canary Wharf Center Road, Tower Gateway, Stratford & Lewisham
+      spawnStabled(tplBnkLew, 'BNK_HSH', ['BNK', 'SHA', 'LIM', 'WFE', 'WIQ', 'CAW', 'HER', 'SQY', 'CRH', 'MUD', 'ISG', 'CUT', 'GRE', 'DEP', 'ELV', 'LEW'], 12, 'Reversing out of Bank Tail Headshunt Overrun (SOP-UG1)');
+      spawnStabled(tplTwgBck, 'TWG_UP', ['TWG', 'SHA', 'LIM', 'WFE', 'POP', 'BLW', 'EIR', 'CNT', 'RVC', 'CUH', 'PRR', 'RAL', 'BKP', 'CYP', 'GAL', 'BCK'], 18, 'First 05:30 2-Car Departure Ready at Tower Gateway');
+      spawnStabled(tplStrLew, 'STR_DN', ['STR', 'PML', 'BOW', 'DEV', 'LAN', 'ALL', 'POP', 'WIQ', 'CAW', 'HER', 'SQY', 'CRH', 'MUD', 'ISG', 'CUT', 'GRE', 'DEP', 'ELV', 'LEW'], 15);
+      spawnStabled(tplBnkLew, 'CAW_MID', ['CAW', 'WIQ', 'WFE', 'LIM', 'SHA', 'BNK'], 14, 'Stabled on Canary Wharf P3/P4 Center Road');
+      spawnStabled(tplStiWoo, 'STI_DN', ['STI', 'SHS', 'ABB', 'WHM', 'STL', 'CNT', 'WSV', 'PDK', 'LCA', 'KGV', 'WOO'], 25);
+
+      // Schedule regular interval spawns to begin at 05:30:00 (300s from 05:25:00)
+      for (const tpl of this.templates) {
+        const intervalSec = Math.max(90, tpl.intervalMins * 60);
+        this.lastSpawnFwd[tpl.id] = 5 * 3600 + 30 * 60 - intervalSec;
+        this.lastSpawnRev[tpl.id] = 5 * 3600 + 30 * 60 - intervalSec + 45;
+      }
+
+      // Seed Monday 05:25 Pre-Service Incidents (Royal Mint St Underground Portal Check + Depot Roll-Out)
+      const pdpTrain = this.trains.find((t) => t.currentNodeId === 'PDP_S3') || this.trains[0];
+      if (pdpTrain) {
+        pdpTrain.state = 'BROKEN_DOWN';
+        pdpTrain.breakdownReason = 'Cold-Start VOBC Inductive Loop Handshake Pending — Awaiting PSA';
+      }
+
+      this.incidents = [
+        {
+          id: 'INC_MON_0525_1',
+          title: '05:25 Cold Start — VOBC Loop Handshake Fault on Poplar Depot Rd 3',
+          description:
+            'Starter Unit on Poplar Depot Road 3 (PDP_S3) failed its automated 05:25 pre-departure VOBC loop test prior to the 05:30 first-train launch. Dispatch a PSA to manual-shunt onto the Poplar trunk.',
+          severity: 'CRITICAL',
+          stationId: 'PDP',
+          nodeId: 'PDP_S3',
+          trainId: pdpTrain?.id,
+          timestamp: this.simTimeSeconds - 15,
+          resolved: false,
+          actions: [
+            {
+              id: 'ACT_MON_PSA',
+              label: 'Dispatch PSA to Manual-Launch Unit (18 mph)',
+              description: 'Authorises PSA to drive unit out of Poplar Depot Rd 3 onto Poplar P1/P2',
+              effectType: 'DISPATCH_PSA',
+              targetId: pdpTrain?.id,
+            },
+            {
+              id: 'ACT_MON_ECS',
+              label: 'Dispatch Spare ECS Unit from Beckton Depot',
+              description: 'Launches an extra 9xx positioning unit from Beckton Depot to cover the diagram',
+              effectType: 'BOOST_SERVICE',
+              targetId: 'ECS_TRANSFER',
+            },
+          ],
+        },
+        {
+          id: 'INC_MON_0525_2',
+          title: 'SOP-UG1 Pre-Service Check — Royal Mint St / Bank Bore Portal',
+          description:
+            'Overnight points heater check at Royal Mint Street Junction (RMJ_UP) ahead of the 05:30 Bank deep-bore launch. Confirm bore clearance or divert early 2-car sets into Tower Gateway.',
+          severity: 'WARNING',
+          stationId: 'BNK',
+          nodeId: 'RMJ_UP',
+          timestamp: this.simTimeSeconds - 10,
+          resolved: false,
+          actions: [
+            {
+              id: 'ACT_MON_CLR_RMJ',
+              label: 'Confirm Bank 1:20 Bore Clear (Release SOP-UG1)',
+              description: 'Completes Royal Mint St points check and clears Bank P9/P10 approach',
+              effectType: 'CLEAR_FAULT',
+              targetId: 'RMJ_UP',
+            },
+            {
+              id: 'ACT_MON_PLAN_B',
+              label: 'Engage Plan B: Divert 2C to Tower Gateway / 3C to Shadwell',
+              description: 'Routes 2-car sets into TWG (60m max) and reverses 3-car sets at SHA crossover',
+              effectType: 'ACTIVATE_CONTINGENCY',
+              contingencyId: 'CP_DIVERT_TWG_BNK',
+            },
+          ],
+        },
+      ];
+
+      this.addLog(
+        'TIMETABLE',
+        'SHIFT LOADED: Monday 05:25:00 Cold Start (5 mins before 05:30 First Train). 12 units stabled across Beckton Rd 1–4, Poplar Rd 1–3, & Bank Headshunt.'
+      );
+    } else if (preset === 'MON_0730') {
+      this.simDayName = 'MON';
+      this.simTimeSeconds = 7 * 3600 + 30 * 60; // 07:30:00
+      this.totalArrivals = 42;
+      this.onTimeArrivals = 40;
+      this.totalPassengersCarried = 14820;
+      for (const st of this.stations) {
+        this.stationFootfall[st.id] = Math.floor(st.baseDemand * 180 + Math.random() * 90);
+      }
+      this.seedInitialTrains();
+      this.seedInitialIncidents();
+      this.addLog('TIMETABLE', 'SHIFT LOADED: Monday 07:30:00 Morning Rush Hour Peak (Full 7-Branch Fleet).');
+    } else if (preset === 'SAT_1300') {
+      this.simDayName = 'SAT';
+      this.simTimeSeconds = 13 * 3600; // 13:00:00
+      this.totalArrivals = 68;
+      this.onTimeArrivals = 64;
+      this.totalPassengersCarried = 24900;
+      this.seedInitialTrains();
+      this.stationCrowdMultiplier['CUH'] = 1.85;
+      this.stationCrowdMultiplier['LCA'] = 1.75;
+      this.stationCrowdMultiplier['CUT'] = 1.65;
+      this.incidents = [
+        {
+          id: 'INC_SAT_1',
+          title: 'Weekend ExCeL Trade Fair + Cutty Sark Tourist Surge',
+          description:
+            'Massive leisure crowds at Custom House (CUH), Cutty Sark (CUT 2-car SDO platform), and London City Airport (LCA). Dwell times +40%.',
+          severity: 'WARNING',
+          stationId: 'CUH',
+          nodeId: 'CUH_DN',
+          timestamp: this.simTimeSeconds - 30,
+          resolved: false,
+          actions: [
+            {
+              id: 'ACT_SAT_SHUTTLE',
+              label: 'Inject Canning Town ↔ Custom House ExCeL Shuttle',
+              description: 'Uses Custom House ExCeL Siding (CUH_SID) to run 4-min turnbacks',
+              effectType: 'BOOST_SERVICE',
+              targetId: 'EXCEL_CUH',
+            },
+            {
+              id: 'ACT_SAT_AIR',
+              label: 'Inject Stratford ↔ City Airport Charter (7xx)',
+              description: 'Adds direct 3-car airport charter service',
+              effectType: 'BOOST_SERVICE',
+              targetId: 'AIRSHOW',
+            },
+          ],
+        },
+      ];
+      this.addLog('TIMETABLE', 'SHIFT LOADED: Saturday 13:00:00 ExCeL Exhibition & Cutty Sark SDO Surge.');
+    } else if (preset === 'FRI_2355') {
+      this.simDayName = 'FRI';
+      this.simTimeSeconds = 23 * 3600 + 55 * 60; // 23:55:00
+      this.totalArrivals = 140;
+      this.onTimeArrivals = 134;
+      this.totalPassengersCarried = 52400;
+      this.seedInitialTrains();
+      // Divert several late-night units back to Beckton & Poplar Depot stabling roads
+      if (this.trains[0]) this.rerouteTrainToDestination(this.trains[0], 'BDP_R1');
+      if (this.trains[1]) this.rerouteTrainToDestination(this.trains[1], 'PDP_S1');
+      this.incidents = [
+        {
+          id: 'INC_FRI_1',
+          title: '23:55 Late-Night Depot Run-In & Engineering Possession',
+          description:
+            'Last passenger trains are clearing Bank and Canary Wharf prior to 00:30 engineering possession. Route terminating stock into Beckton Depot (BDP Rd 1–4) and Poplar Depot (PDP Rd 1–3).',
+          severity: 'WARNING',
+          stationId: 'BDP',
+          nodeId: 'BDP_R1',
+          timestamp: this.simTimeSeconds - 20,
+          resolved: false,
+          actions: [
+            {
+              id: 'ACT_FRI_ECS',
+              label: 'Dispatch Final ECS Sweep (Poplar Depot → Beckton Depot)',
+              description: 'Transfers remaining stock into Beckton stabling roads',
+              effectType: 'BOOST_SERVICE',
+              targetId: 'ECS_TRANSFER',
+            },
+            {
+              id: 'ACT_FRI_CLR',
+              label: 'Acknowledge Night Possession Handover',
+              description: 'Confirms engineering possession schedule',
+              effectType: 'CLEAR_FAULT',
+              targetId: 'BDP_R1',
+            },
+          ],
+        },
+      ];
+      this.addLog('TIMETABLE', 'SHIFT LOADED: Friday 23:55:00 Late-Night Shutdown & Multi-Road Depot Stabling Run-In.');
+    }
+
+    this.onStateChange?.();
+  }
+
   private seedInitialTrains() {
-    // Spawn 14 initial trains distributed smoothly across all 7 branches
+    // Spawn 15 initial trains distributed across all 7 branches + depot/center sidings
     const initialPlacements: {
       templateIndex: number;
       reverse: boolean;
       startStationIdx: number;
+      overrideStartNode?: string;
     }[] = [
       { templateIndex: 0, reverse: false, startStationIdx: 2 }, // LIM -> LEW
       { templateIndex: 0, reverse: false, startStationIdx: 7 }, // HER -> LEW
       { templateIndex: 0, reverse: true, startStationIdx: 12 }, // GRE -> BNK
-      { templateIndex: 0, reverse: true, startStationIdx: 5 },  // CAW -> BNK
+      { templateIndex: 0, reverse: true, startStationIdx: 5, overrideStartNode: 'CAW_MID' }, // CAW P3/P4 -> BNK
       { templateIndex: 1, reverse: false, startStationIdx: 4 }, // POP -> WOO
       { templateIndex: 1, reverse: true, startStationIdx: 10 }, // LCA -> BNK
-      { templateIndex: 2, reverse: false, startStationIdx: 0 }, // TWG -> BCK
-      { templateIndex: 2, reverse: false, startStationIdx: 9 }, // CUH -> BCK
-      { templateIndex: 2, reverse: true, startStationIdx: 13 }, // CYP -> TWG
+      { templateIndex: 2, reverse: false, startStationIdx: 0 }, // TWG -> BCK (2-car)
+      { templateIndex: 2, reverse: false, startStationIdx: 9 }, // CUH -> BCK (2-car)
+      { templateIndex: 2, reverse: true, startStationIdx: 13 }, // CYP -> TWG (2-car)
       { templateIndex: 3, reverse: false, startStationIdx: 2 }, // BOW -> LEW
       { templateIndex: 3, reverse: true, startStationIdx: 9 },  // CRH -> STR
       { templateIndex: 4, reverse: false, startStationIdx: 1 }, // SHS -> WOO
       { templateIndex: 4, reverse: true, startStationIdx: 7 },  // WSV -> STI
-      { templateIndex: 5, reverse: false, startStationIdx: 1 }, // GAL -> CAW (ECS)
+      { templateIndex: 5, reverse: false, startStationIdx: 0, overrideStartNode: 'BDP_R2' }, // BDP Rd 2 -> CAW (ECS)
+      { templateIndex: 1, reverse: false, startStationIdx: 4, overrideStartNode: 'PDP_S1' }, // PDP Rd 1 -> WOO
     ];
 
     initialPlacements.forEach((p) => {
@@ -233,7 +503,7 @@ export class DLRSimulation {
       const startSt = remainingStations[0];
       const destSt = remainingStations[remainingStations.length - 1];
       const dirSuffix = p.reverse ? 'UP' : 'DN';
-      const startNodeId = `${startSt}_${dirSuffix}`;
+      const startNodeId = p.overrideStartNode || `${startSt}_${dirSuffix}`;
 
       this.spawnTrainFromRoute(tpl, startNodeId, remainingStations, destSt);
     });
@@ -409,7 +679,7 @@ export class DLRSimulation {
       const lastFwd = this.lastSpawnFwd[tpl.id] || 0;
       if (this.simTimeSeconds - lastFwd >= intervalSec) {
         this.lastSpawnFwd[tpl.id] = this.simTimeSeconds;
-        const stations = this.applyActiveContingenciesToRoute([...tpl.routeStations]);
+        const stations = this.applyActiveContingenciesToRoute([...tpl.routeStations], tpl.cars);
         if (stations.length >= 2) {
           const startNode = `${stations[0]}_DN`;
           this.spawnTrainFromRoute(tpl, startNode, stations, stations[stations.length - 1]);
@@ -421,7 +691,7 @@ export class DLRSimulation {
         const lastRev = this.lastSpawnRev[tpl.id] || 0;
         if (this.simTimeSeconds - lastRev >= intervalSec) {
           this.lastSpawnRev[tpl.id] = this.simTimeSeconds;
-          const revStations = this.applyActiveContingenciesToRoute([...tpl.routeStations].reverse());
+          const revStations = this.applyActiveContingenciesToRoute([...tpl.routeStations].reverse(), tpl.cars);
           if (revStations.length >= 2) {
             const startNode = `${revStations[0]}_UP`;
             this.spawnTrainFromRoute(tpl, startNode, revStations, revStations[revStations.length - 1]);
@@ -431,23 +701,28 @@ export class DLRSimulation {
     }
   }
 
-  private applyActiveContingenciesToRoute(route: string[]): string[] {
+  private applyActiveContingenciesToRoute(route: string[], cars: 2 | 3 = 3): string[] {
     let mod = [...route];
 
-    // Plan A: Short-turn Lewisham trains at Canary Wharf
+    // Plan A: Short-turn Lewisham trains at Canary Wharf P3/P4 Center Road
     const planA = this.contingencies.find((c) => c.id === 'CP_SHORT_CAW' && c.active);
     if (planA && mod[mod.length - 1] === 'LEW' && mod.includes('CAW')) {
       const idx = mod.indexOf('CAW');
       mod = mod.slice(0, idx + 1);
     }
 
-    // Plan B: Divert Bank trains to Tower Gateway / Shadwell
+    // Plan B (SOP-UG2 & SOP-TWG): Divert 2-car Bank trains to Tower Gateway; short-turn 3-car sets at Shadwell
     const planB = this.contingencies.find((c) => c.id === 'CP_DIVERT_TWG_BNK' && c.active);
     if (planB && mod[mod.length - 1] === 'BNK') {
-      mod[mod.length - 1] = 'TWG';
+      if (cars === 2) {
+        mod[mod.length - 1] = 'TWG';
+      } else if (mod.includes('SHA')) {
+        const idx = mod.indexOf('SHA');
+        mod = mod.slice(0, idx + 1);
+      }
     }
 
-    // Plan C: Short-turn Beckton trains at Custom House
+    // Plan C: Short-turn Beckton trains at Custom House ExCeL Siding
     const planC = this.contingencies.find((c) => c.id === 'CP_BECKTON_CUH' && c.active);
     if (planC && mod[mod.length - 1] === 'BCK' && mod.includes('CUH')) {
       const idx = mod.indexOf('CUH');
@@ -497,7 +772,7 @@ export class DLRSimulation {
 
     const currNode = this.nodeMap[train.currentNodeId];
 
-    // 2. Dwelling at station platform
+    // 2. Dwelling at station platform or stabling road
     if (train.state === 'DWELLING' || train.state === 'TURNBACK') {
       train.speedMph = 0;
       train.dwellRemaining -= dtSim;
@@ -525,7 +800,7 @@ export class DLRSimulation {
         return;
       }
 
-      // Check CBTC safe braking distance ahead (is another train too close on nextEdge or at nextNode?)
+      // Check CBTC safe braking distance ahead & SOP-UG1 single-train-per-bore rule
       if (this.isBlockAheadOccupied(train, nextNodeId)) {
         train.state = 'CBTC_BRAKING';
         train.delaySeconds += dtSim;
@@ -595,10 +870,10 @@ export class DLRSimulation {
         const st = STATION_MAP[arrivedStId];
         const crowdMult = this.stationCrowdMultiplier[arrivedStId] || 1.0;
 
-        // Check platform length alert (3-car train at 2-car platform like Cutty Sark / Elverson Rd / Tower Gateway)
+        // Check platform length alert (3-car train at 2-car platform like Cutty Sark / Elverson Rd)
         const selectiveDoorPenalty = train.cars === 3 && st && st.maxCars === 2 ? 6 : 0;
 
-        if (!train.isECS && st) {
+        if (!train.isECS && st && arrivedNode?.type === 'platform') {
           const alighting = Math.floor(train.passengers * (0.18 + Math.random() * 0.25));
           const boarding = Math.floor(st.baseDemand * 11 * crowdMult * (0.7 + Math.random() * 0.6));
           train.passengers = Math.min(train.maxCapacity, Math.max(0, train.passengers - alighting + boarding));
@@ -606,26 +881,31 @@ export class DLRSimulation {
           this.stationFootfall[arrivedStId] = (this.stationFootfall[arrivedStId] || 0) + boarding + alighting;
         }
 
-        // Base dwell 14s + crowd effect + SDO penalty
-        const baseDwell = train.isECS ? 4 : Math.round((13 + (st ? st.baseDemand * 0.8 : 4)) * crowdMult) + selectiveDoorPenalty;
+        // Junction nodes (like RMJ or DLT chords) pass through with 1s technical check rather than full station dwell
+        const isPassThroughJunction = arrivedNode?.type === 'junction';
+        const baseDwell = isPassThroughJunction
+          ? 1
+          : train.isECS
+          ? 4
+          : Math.round((13 + (st ? st.baseDemand * 0.8 : 4)) * crowdMult) + selectiveDoorPenalty;
         train.dwellRemaining = baseDwell;
         train.state = train.nodePath.length <= 1 ? 'TURNBACK' : 'DWELLING';
 
-        if (crowdMult > 1.35) {
-          train.delaySeconds += 5;
-        } else if (train.delaySeconds > 3) {
-          //SelTrac ATO recovers small delays on plain line
-          train.delaySeconds = Math.max(0, train.delaySeconds - 3);
+        if (!isPassThroughJunction) {
+          if (crowdMult > 1.35) {
+            train.delaySeconds += 5;
+          } else if (train.delaySeconds > 3) {
+            train.delaySeconds = Math.max(0, train.delaySeconds - 3);
+          }
         }
 
         // Update nextNodeId pointer
         if (train.nodePath.length > 1) {
-          // Check if player set a manual NX override from this node
           const manualTarget = this.manualRoutes[train.currentNodeId];
-          if (manualTarget && this.nodeMap[manualTarget]?.stationId) {
-            const newStId = this.nodeMap[manualTarget].stationId!;
-            this.rerouteTrainToDestination(train, newStId);
-            delete this.manualRoutes[train.currentNodeId]; // Consume one-shot NX route or keep? Consume & log!
+          if (manualTarget) {
+            const newTarget = this.nodeMap[manualTarget]?.stationId || manualTarget;
+            this.rerouteTrainToDestination(train, newTarget);
+            delete this.manualRoutes[train.currentNodeId];
           }
           train.nextNodeId = train.nodePath[1];
           const ne = this.findEdge(train.currentNodeId, train.nextNodeId);
@@ -644,13 +924,19 @@ export class DLRSimulation {
       return true;
     }
 
+    const nextEdge = this.findEdge(train.currentNodeId, targetNodeId);
+
     for (const other of this.trains) {
       if (other.id === train.id) continue;
       // Another train is dwelling or stopped at targetNodeId
       if (other.currentNodeId === targetNodeId && other.edgeProgress < 0.45) {
         return true;
       }
-      // Another train is on the exact same edge right in front of us (< 35% ahead)
+      // SOP-UG1: Deep-tube & sub-aqueous river bores allow only 1 train per tunnel bore between portals!
+      if (this.undergroundSopActive && nextEdge?.isTunnel && other.currentEdgeId === nextEdge.id) {
+        return true;
+      }
+      // Another train is on the exact same edge right in front of us (< 38% ahead)
       if (other.currentNodeId === train.currentNodeId && other.nextNodeId === targetNodeId && other.edgeProgress < 0.42) {
         return true;
       }
@@ -659,7 +945,6 @@ export class DLRSimulation {
   }
 
   private computeCbtcSpeedLimit(train: Train, edge: TrackEdge): number {
-    // Moving-block check: if preceding train is on same edge or sitting at destination node
     for (const other of this.trains) {
       if (other.id === train.id) continue;
       if (other.currentEdgeId === edge.id && other.edgeProgress > train.edgeProgress) {
@@ -681,22 +966,80 @@ export class DLRSimulation {
       this.onTimeArrivals++;
     }
 
-    // Remove completed train (or turn it back automatically via template cycle)
+    // SOP-UG2: If a train terminates at Bank (BNK_UP) and the Bank Tail Headshunt Overrun Bore (BNK_HSH) is free,
+    // reverse it via BNK_HSH -> BNK_DN -> return working if fleet size is reasonable!
+    const tpl = this.templates.find((t) => t.id === train.templateId);
+    if (
+      train.currentNodeId === 'BNK_UP' &&
+      tpl &&
+      !train.isECS &&
+      this.trains.length <= 16 &&
+      !this.trains.some((o) => o.currentNodeId === 'BNK_HSH')
+    ) {
+      const returnDest = tpl.destId === 'BNK' ? tpl.originId : tpl.destId;
+      const returnStations = this.applyActiveContingenciesToRoute([...tpl.routeStations], train.cars);
+      const revPath = ['BNK_UP', 'BNK_HSH', ...this.buildFullNodePathForStations('BNK_HSH', returnStations, train.cars).slice(1)];
+      if (revPath.length > 2) {
+        train.nodePath = revPath;
+        train.nextNodeId = revPath[1];
+        train.currentEdgeId = this.findEdge('BNK_UP', revPath[1])?.id || null;
+        train.routeQueue = returnStations.slice(1);
+        train.originCode = 'BNK';
+        train.destCode = returnDest;
+        train.headcode = `${train.serviceNumber} ${returnDest}`;
+        train.dwellRemaining = 10;
+        train.delaySeconds = Math.max(0, train.delaySeconds - 20);
+        train.state = 'TURNBACK';
+        return;
+      }
+    }
+
+    // If train arrived at a dedicated depot stabling road (BDP_R1..R4 or PDP_S1..S3), let it stable briefly then cycle back out
+    const currNode = this.nodeMap[train.currentNodeId];
+    if (currNode?.type === 'depot' && this.trains.length <= 15 && tpl) {
+      const outDest = currNode.stationId === 'BDP' ? 'CAW' : 'BNK';
+      const newPath = this.findNodePath(train.currentNodeId, outDest, train.cars, true);
+      if (newPath.length > 2) {
+        train.nodePath = newPath;
+        train.nextNodeId = newPath[1];
+        train.currentEdgeId = this.findEdge(train.currentNodeId, newPath[1])?.id || null;
+        train.destCode = outDest;
+        train.headcode = `${train.serviceNumber} ${outDest}`;
+        train.dwellRemaining = 28;
+        train.state = 'TURNBACK';
+        return;
+      }
+    }
+
     const idx = this.trains.findIndex((t) => t.id === train.id);
     if (idx !== -1) {
       this.trains.splice(idx, 1);
     }
   }
 
-  // Player Action: Set NX Entry-Exit Route between two nodes
+  // Player Action: Set NX Entry-Exit Route between two nodes (supports station platforms, Delta chords, and depot roads!)
   public setManualNXRoute(entryNodeId: string, exitNodeId: string): { ok: boolean; msg: string } {
     const entryNode = this.nodeMap[entryNodeId];
     const exitNode = this.nodeMap[exitNodeId];
-    if (!entryNode || !exitNode || !exitNode.stationId) {
+    if (!entryNode || !exitNode) {
       return { ok: false, msg: 'Invalid NX entry/exit signal selection.' };
     }
 
-    const path = this.findNodePath(entryNodeId, exitNode.stationId, 3, true);
+    const affectedTrain = this.trains.find(
+      (t) => t.currentNodeId === entryNodeId || t.nextNodeId === entryNodeId
+    );
+    const checkCars: 2 | 3 = affectedTrain ? affectedTrain.cars : 2;
+
+    // SOP-TWG check on manual NX route to Tower Gateway
+    if (exitNode.stationId === 'TWG' && affectedTrain && affectedTrain.cars === 3) {
+      soundEngine.playIncidentAlert(false);
+      const rejectMsg = `SOP-TWG REJECT: Unit ${affectedTrain.headcode} is a 3-Car (90m) set and cannot enter Tower Gateway (60m 2-Car max). Auto-diverting to Shadwell (SHA) crossover!`;
+      this.addLog('NX', rejectMsg);
+      this.rerouteTrainToDestination(affectedTrain, 'SHA');
+      return { ok: false, msg: rejectMsg };
+    }
+
+    const path = this.findNodePath(entryNodeId, exitNodeId, checkCars, true);
     if (path.length < 2) {
       return { ok: false, msg: `No valid interlocked route found from ${entryNode.name} to ${exitNode.name}.` };
     }
@@ -704,25 +1047,35 @@ export class DLRSimulation {
     this.manualRoutes[entryNodeId] = exitNodeId;
     entryNode.signalHeld = false;
 
-    // Also immediately apply to any train currently at or approaching entryNodeId
-    const affectedTrain = this.trains.find(
-      (t) => t.currentNodeId === entryNodeId || t.nextNodeId === entryNodeId
-    );
-    if (affectedTrain && exitNode.stationId) {
-      this.rerouteTrainToDestination(affectedTrain, exitNode.stationId);
+    if (affectedTrain) {
+      this.rerouteTrainToDestination(affectedTrain, exitNodeId);
     }
 
     soundEngine.playRelayClick(true);
-    const msg = `NX Interlocking: Route locked ${entryNode.stationId} → ${exitNode.stationId} (${path.length - 1} blocks).`;
+    const msg = `NX Interlocking: Route locked ${entryNode.roadLabel || entryNode.id} → ${exitNode.roadLabel || exitNode.id} (${path.length - 1} blocks).`;
     this.addLog('NX', msg);
     this.onStateChange?.();
     return { ok: true, msg };
   }
 
-  // Reroute an active train to a new destination or short-turn station
-  public rerouteTrainToDestination(train: Train, newDestStationId: string) {
+  // Reroute an active train to a new destination station OR specific depot/turnback road (e.g. 'CAW_MID', 'BDP_R1', 'PDP_S2')
+  public rerouteTrainToDestination(train: Train, newDestStationOrNodeId: string) {
+    let targetId = newDestStationOrNodeId;
+    const targetNodeObj = this.nodeMap[targetId];
+    const resolvedStationId = targetNodeObj?.stationId || targetId;
+
+    // Enforce SOP-TWG: 3-Car (90m) trains are physically locked out of Tower Gateway (60m 2-Car max)
+    if (resolvedStationId === 'TWG' && train.cars === 3) {
+      soundEngine.playIncidentAlert(false);
+      this.addLog(
+        'ARS',
+        `SOP-TWG INTERLOCKING LOCKOUT: 3-Car Unit ${train.headcode} rejected at Royal Mint St for Tower Gateway (60m max) — short-turning at Shadwell (SHA) instead!`
+      );
+      targetId = 'SHA';
+    }
+
     const startNode = train.edgeProgress > 0.1 && train.nextNodeId ? train.nextNodeId : train.currentNodeId;
-    const newPath = this.findNodePath(startNode, newDestStationId, train.cars, true);
+    const newPath = this.findNodePath(startNode, targetId, train.cars, true);
     if (newPath.length < 1) return;
 
     if (train.edgeProgress > 0.1 && train.nextNodeId) {
@@ -742,18 +1095,20 @@ export class DLRSimulation {
       }
     }
 
+    const finalStCode = this.nodeMap[newPath[newPath.length - 1]]?.stationId || targetId;
     train.routeQueue = stationSeq.slice(1);
     const oldDest = train.destCode;
-    train.destCode = newDestStationId;
-    train.headcode = `${train.serviceNumber} ${newDestStationId}`;
+    train.destCode = finalStCode;
+    train.headcode = `${train.serviceNumber} ${finalStCode}`;
     train.diverted = true;
 
+    const roadNote = this.nodeMap[targetId]?.roadLabel ? ` (${this.nodeMap[targetId].roadLabel})` : '';
     soundEngine.playSplitFlap(5);
-    this.addLog('ARS', `Service ${train.serviceNumber} diverted from ${oldDest} to ${newDestStationId}.`);
+    this.addLog('ARS', `Service ${train.serviceNumber} diverted from ${oldDest} to ${finalStCode}${roadNote}.`);
     this.rareRoutesCompleted.unshift({
       headcode: train.headcode,
-      routeDesc: `${train.originCode} → ${newDestStationId} (Live Control Diversion)`,
-      timeStr: this.formatSimTime().slice(0, 5),
+      routeDesc: `${train.originCode} → ${finalStCode}${roadNote} (Live Control Diversion)`,
+      timeStr: this.formatSimTime().slice(-8, -3),
     });
     if (this.rareRoutesCompleted.length > 8) this.rareRoutesCompleted.pop();
     this.onStateChange?.();
@@ -788,6 +1143,74 @@ export class DLRSimulation {
     this.onStateChange?.();
   }
 
+  // "HELP ME! FIX IT!" — AI Chief Controller One-Sweep Emergency Stabilization
+  public stabilizeNetworkAll(): { fixedCount: number; summary: string } {
+    let fixedCount = 0;
+    const actionsLog: string[] = [];
+
+    // 1. Resolve all active blocking incidents using their primary recovery action
+    const unresolved = this.incidents.filter((i) => !i.resolved);
+    for (const inc of unresolved) {
+      const act = inc.actions[0];
+      if (act) {
+        this.executeIncidentAction(inc.id, act.id);
+        actionsLog.push(act.label);
+      } else {
+        inc.resolved = true;
+      }
+      fixedCount++;
+    }
+
+    // 2. Dispatch PSA to any remaining broken-down VOBC trains
+    for (const tr of this.trains) {
+      if (tr.state === 'BROKEN_DOWN') {
+        this.dispatchPsaToTrain(tr.id);
+        actionsLog.push(`PSA → ${tr.headcode}`);
+        fixedCount++;
+      }
+    }
+
+    // 3. Clear any lingering track blocks, points failures, or forgotten manual signal holds
+    for (const n of this.nodes) {
+      if (n.trackBlocked || n.pointsFailed || n.signalHeld) {
+        n.trackBlocked = false;
+        n.pointsFailed = false;
+        n.signalHeld = false;
+        fixedCount++;
+      }
+    }
+
+    // 4. Short-turn heavily delayed trains (>95s) at the nearest intermediate turnback or Canary Wharf P3/P4
+    for (const tr of this.trains) {
+      if (tr.delaySeconds > 95 && !tr.diverted) {
+        const turnSt = tr.routeQueue.slice(0, -1).find((stId) => STATION_MAP[stId]?.hasTurnback);
+        if (turnSt) {
+          this.rerouteTrainToDestination(tr, turnSt === 'CAW' ? 'CAW_MID' : turnSt);
+          tr.delaySeconds = Math.max(15, Math.round(tr.delaySeconds * 0.35));
+          actionsLog.push(`Short-turned ${tr.serviceNumber} → ${turnSt}`);
+          fixedCount++;
+        }
+      }
+    }
+
+    // 5. Normalise station crowd surges
+    for (const stId in this.stationCrowdMultiplier) {
+      if (this.stationCrowdMultiplier[stId] > 1.2) {
+        this.stationCrowdMultiplier[stId] = 1.0;
+        fixedCount++;
+      }
+    }
+
+    soundEngine.playSplitFlap(8);
+    const summary =
+      fixedCount > 0
+        ? `AI Chief Controller resolved ${fixedCount} active issue(s): ${actionsLog.slice(0, 3).join(' · ') || 'Cleared all locks & delays'}.`
+        : 'All 7 DLR branches are already clear and running smoothly — standing by on active watch.';
+    this.addLog('ARS', `🆘 HELP ME! FIX IT! ENGAGED: ${summary}`);
+    this.onStateChange?.();
+    return { fixedCount, summary };
+  }
+
   // Toggle Contingency Plan
   public toggleContingencyPlan(planId: string) {
     const plan = this.contingencies.find((c) => c.id === planId);
@@ -803,11 +1226,11 @@ export class DLRSimulation {
     if (plan.active) {
       for (const t of this.trains) {
         if (plan.id === 'CP_SHORT_CAW' && t.destCode === 'LEW' && t.routeQueue.includes('CAW')) {
-          this.rerouteTrainToDestination(t, 'CAW');
-        } else if (plan.id === 'CP_DIVERT_TWG_BNK' && t.destCode === 'BNK' && t.cars === 2) {
-          this.rerouteTrainToDestination(t, 'TWG');
+          this.rerouteTrainToDestination(t, 'CAW_MID');
+        } else if (plan.id === 'CP_DIVERT_TWG_BNK' && t.destCode === 'BNK') {
+          this.rerouteTrainToDestination(t, t.cars === 2 ? 'TWG' : 'SHA');
         } else if (plan.id === 'CP_BECKTON_CUH' && t.destCode === 'BCK' && t.routeQueue.includes('CUH')) {
-          this.rerouteTrainToDestination(t, 'CUH');
+          this.rerouteTrainToDestination(t, 'CUH_SID');
         } else if (plan.id === 'CP_AIRPORT_LCA' && t.destCode === 'WOO' && t.routeQueue.includes('LCA')) {
           this.rerouteTrainToDestination(t, 'LCA');
         }

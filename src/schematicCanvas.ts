@@ -54,34 +54,34 @@ export class SchematicCanvas {
     const h = rect ? rect.height : 800;
 
     if (sector === 'FULL') {
-      this.zoom = Math.min(w / 2250, h / 1350) * 0.94;
-      this.camX = w / 2 - 1100 * this.zoom;
-      this.camY = h / 2 - 640 * this.zoom;
+      this.zoom = Math.min(w / 2060, h / 1340) * 0.94;
+      this.camX = w / 2 - 1030 * this.zoom;
+      this.camY = h / 2 - 630 * this.zoom;
     } else if (sector === 'CORE') {
-      // Poplar, West India Quay, Canary Wharf, Westferry Delta
-      this.zoom = 1.05;
-      this.camX = w / 2 - 720 * this.zoom;
-      this.camY = h / 2 - 560 * this.zoom;
+      // Expanded Westferry - Poplar - West India Quay Delta, Canary Wharf P3/P4 & Poplar Depot Fan
+      this.zoom = 1.04;
+      this.camX = w / 2 - 760 * this.zoom;
+      this.camY = h / 2 - 515 * this.zoom;
     } else if (sector === 'WEST') {
-      // Bank, Tower Gateway, Shadwell, Limehouse, Westferry
+      // Bank Headshunt, Tower Gateway 2C Throat, Royal Mint St Junction, Shadwell, Limehouse, Westferry
       this.zoom = 1.15;
-      this.camX = w / 2 - 360 * this.zoom;
-      this.camY = h / 2 - 510 * this.zoom;
+      this.camX = w / 2 - 320 * this.zoom;
+      this.camY = h / 2 - 500 * this.zoom;
     } else if (sector === 'SOUTH') {
       // Canary Wharf down to Greenwich & Lewisham
       this.zoom = 0.95;
-      this.camX = w / 2 - 640 * this.zoom;
-      this.camY = h / 2 - 930 * this.zoom;
+      this.camX = w / 2 - 690 * this.zoom;
+      this.camY = h / 2 - 960 * this.zoom;
     } else if (sector === 'EAST') {
-      // Canning Town, ExCeL, Beckton, London City Airport, Woolwich
+      // Canning Town, ExCeL, Wrapped Beckton & Multi-Road Beckton Depot, City Airport, Woolwich
       this.zoom = 0.88;
-      this.camX = w / 2 - 1580 * this.zoom;
-      this.camY = h / 2 - 500 * this.zoom;
+      this.camX = w / 2 - 1630 * this.zoom;
+      this.camY = h / 2 - 360 * this.zoom;
     } else if (sector === 'NORTH') {
-      // Stratford & Stratford International
+      // Stratford, Stratford International & Poplar Depot Fan
       this.zoom = 1.0;
-      this.camX = w / 2 - 920 * this.zoom;
-      this.camY = h / 2 - 280 * this.zoom;
+      this.camX = w / 2 - 930 * this.zoom;
+      this.camY = h / 2 - 270 * this.zoom;
     }
   }
 
@@ -425,34 +425,120 @@ export class SchematicCanvas {
   private drawThamesAndZones() {
     const ctx = this.ctx;
 
-    // River Thames stylized schematic band between Island Gardens (935) and Cutty Sark (995), and King George V (600) to Woolwich
+    // River Thames stylized schematic band between Island Gardens (980) and Cutty Sark (1040), and King George V (600) to Woolwich
     ctx.save();
     ctx.strokeStyle = 'rgba(14, 116, 144, 0.16)';
     ctx.lineWidth = 34;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(100, 965);
-    ctx.lineTo(540, 965);
-    ctx.lineTo(750, 965);
-    ctx.lineTo(1050, 740);
+    ctx.moveTo(100, 1010);
+    ctx.lineTo(540, 1010);
+    ctx.lineTo(790, 1010);
+    ctx.lineTo(1080, 740);
     ctx.lineTo(1750, 680);
-    ctx.lineTo(2150, 680);
+    ctx.lineTo(2080, 680);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
-    ctx.font = '700 13px "JetBrains Mono", monospace';
-    ctx.fillText('RIVER THAMES (GREENWICH SUB-AQUEOUS BORE)', 310, 970);
-    ctx.fillText('RIVER THAMES (WOOLWICH ARSENAL BORE)', 1520, 695);
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+    ctx.font = '700 12px "JetBrains Mono", monospace';
+    ctx.fillText('RIVER THAMES (GREENWICH SUB-AQUEOUS BORE · SOP-UG1)', 310, 1015);
+    ctx.fillText('RIVER THAMES (WOOLWICH ARSENAL BORE · SOP-UG1)', 1520, 695);
+
+    // Helper for Engineering / Depot / SOP Enclosure Boxes
+    const drawEnclosureBox = (
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      title: string,
+      subtitle: string,
+      borderColor = 'rgba(0, 164, 167, 0.32)',
+      bgColor = 'rgba(15, 23, 42, 0.38)'
+    ) => {
+      ctx.save();
+      ctx.fillStyle = bgColor;
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 7);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.font = '800 10.5px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#38BDF8';
+      ctx.fillText(title, x + 10, y + 15);
+
+      ctx.font = '600 9.5px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#94A3B8';
+      ctx.fillText(subtitle, x + 10, y + 28);
+      ctx.restore();
+    };
+
+    // 1. Bank Deep-Tube Bore & Tail Headshunt SOP Box
+    drawEnclosureBox(
+      42,
+      368,
+      268,
+      105,
+      'BANK DEEP-TUBE COMPLEX (SOP-UG1 / UG2)',
+      '1:20 Dive · 1 Train/Bore · Single Tail Headshunt (BNK_HSH)',
+      'rgba(56, 189, 248, 0.35)'
+    );
+
+    // 2. Tower Gateway Viaduct & Minories 2-Car Lockout Box
+    drawEnclosureBox(
+      95,
+      532,
+      215,
+      86,
+      'TOWER GATEWAY (SOP-TWG: 2-CAR 60m MAX)',
+      'Spanish-Solution Dual Platforms · 3-Car Sets Locked Out',
+      'rgba(245, 158, 11, 0.42)'
+    );
+
+    // 3. Expanded Grade-Separated Westferry – Poplar – West India Quay Delta Box
+    drawEnclosureBox(
+      535,
+      448,
+      385,
+      195,
+      'POPLAR – WESTFERRY – WIQ FLYING DELTA',
+      '3 Grade-Separated Chords · 25 mph Curves · POP Turnback Pocket',
+      'rgba(0, 164, 167, 0.38)'
+    );
+
+    // 4. Expanded Poplar Depot & Workshop Multi-Road Fan
+    drawEnclosureBox(
+      828,
+      272,
+      258,
+      162,
+      'POPLAR DEPOT & WORKSITE FAN (PDP)',
+      '3 Stabling & Lifting Roads (PDP_S1–S3) + Reception Throat',
+      'rgba(168, 85, 247, 0.38)'
+    );
+
+    // 5. Expanded Beckton Depot & Terminus Multi-Road Complex (Wrapped Upper-East)
+    drawEnclosureBox(
+      1435,
+      36,
+      535,
+      218,
+      'BECKTON DEPOT (BDP) & GALLIONS REACH COMPLEX',
+      '4 Stabling/Lathe/Wash Roads (BDP_R1–R4) · East & West Ladders · BCK Tail Siding',
+      'rgba(16, 185, 129, 0.38)'
+    );
 
     // Sector header labels on schematic
     ctx.fillStyle = 'rgba(148, 163, 184, 0.14)';
-    ctx.font = '800 18px "JetBrains Mono", monospace';
-    ctx.fillText('CITY & WESTFELDBANK SECTOR', 140, 415);
-    ctx.fillText('OLYMPIC & STRATFORD NORTH', 620, 65);
-    ctx.fillText('POPLAR DELTA & CANARY WHARF', 680, 560);
-    ctx.fillText('ISLE OF DOGS & LEWISHAM SOUTH', 440, 1215);
-    ctx.fillText('ROYAL DOCKS, EXCEL & BECKTON', 1350, 360);
+    ctx.font = '800 17px "JetBrains Mono", monospace';
+    ctx.fillText('CITY & ROYAL MINT ST WEST THROAT', 65, 350);
+    ctx.fillText('OLYMPIC & STRATFORD NORTH', 620, 52);
+    ctx.fillText('ISLE OF DOGS & LEWISHAM SOUTH', 440, 1255);
+    ctx.fillText('ROYAL DOCKS, EXCEL & BECKTON LOOP', 1340, 382);
     ctx.fillText('LONDON CITY AIRPORT & WOOLWICH', 1350, 660);
     ctx.restore();
   }
@@ -480,8 +566,8 @@ export class SchematicCanvas {
       ctx.lineTo(n2.x, n2.y);
 
       if (edge.isCrossover) {
-        ctx.strokeStyle = isManualRoute ? '#38BDF8' : 'rgba(148, 163, 184, 0.25)';
-        ctx.lineWidth = isManualRoute ? 3 : 1.5;
+        ctx.strokeStyle = isManualRoute ? '#38BDF8' : 'rgba(148, 163, 184, 0.32)';
+        ctx.lineWidth = isManualRoute ? 3 : 1.7;
         ctx.setLineDash([4, 4]);
       } else {
         ctx.setLineDash(edge.isTunnel ? [7, 5] : []);
@@ -494,6 +580,9 @@ export class SchematicCanvas {
         } else if (isManualRoute) {
           ctx.strokeStyle = '#F8FAFC'; // SimSig White Locked Route
           ctx.lineWidth = 4.0;
+        } else if (edge.isFlyover) {
+          ctx.strokeStyle = '#2E4760'; // Highlighted grade-separated Delta / Flyover viaduct
+          ctx.lineWidth = 3.5;
         } else {
           ctx.strokeStyle = '#263547'; // Normal Unoccupied Steel Track
           ctx.lineWidth = 3.2;
@@ -502,6 +591,18 @@ export class SchematicCanvas {
 
       ctx.stroke();
       ctx.setLineDash([]);
+
+      // Optional inline edge label for tunnels/chords
+      if (edge.edgeLabel) {
+        const mx = (n1.x + n2.x) / 2;
+        const my = (n1.y + n2.y) / 2;
+        ctx.save();
+        ctx.font = '700 8.5px "JetBrains Mono", monospace';
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.72)';
+        ctx.textAlign = 'center';
+        ctx.fillText(edge.edgeLabel, mx, my - 7);
+        ctx.restore();
+      }
     }
   }
 
@@ -534,11 +635,38 @@ export class SchematicCanvas {
   private drawStationsAndSignals() {
     const ctx = this.ctx;
 
-    // Draw platform nodes & signals
+    // Draw platform nodes, depot stabling berths, Delta junctions & signals
     for (const node of this.sim.nodes) {
-      // Platform berth tick
-      ctx.fillStyle = node.trackBlocked ? '#EF4444' : '#475569';
-      ctx.fillRect(node.x - 4, node.y - 4, 8, 8);
+      if (node.type === 'depot' || node.type === 'siding') {
+        // Draw distinct stabling / turnback berth rectangle
+        ctx.save();
+        ctx.fillStyle = '#0F1B29';
+        ctx.strokeStyle = node.type === 'depot' ? '#A855F7' : '#22D3EE';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(node.x - 16, node.y - 6, 32, 12, 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.fillStyle = node.trackBlocked ? '#EF4444' : '#475569';
+        ctx.fillRect(node.x - 4, node.y - 4, 8, 8);
+      }
+
+      // Draw crisp technical label for broken-out depot roads, Delta chords, and headshunts
+      if (node.roadLabel) {
+        ctx.save();
+        ctx.font = '700 9px "JetBrains Mono", monospace';
+        ctx.fillStyle =
+          node.type === 'depot'
+            ? '#E9D5FF'
+            : node.type === 'siding'
+            ? '#67E8F9'
+            : '#FDE68A';
+        ctx.textAlign = 'center';
+        ctx.fillText(node.roadLabel, node.x, node.y - 11);
+        ctx.restore();
+      }
 
       if (node.hasSignal) {
         const sigPos = this.getSignalLampCoords(node);

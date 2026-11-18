@@ -40,7 +40,8 @@ const indexDialog = document.getElementById('index-dialog') as HTMLDialogElement
 const stationFactsheetDialog = document.getElementById('station-factsheet-dialog') as HTMLDialogElement;
 const factsheetStationSelect = document.getElementById('factsheet-station-Hopper') as HTMLSelectElement;
 
-// Observe Co-Pilot DOM Elements
+// Observe Co-Pilot & Shift Preset DOM Elements
+const shiftPresetSelect = document.getElementById('shift-preset-select') as HTMLSelectElement;
 const toggleObserveBtn = document.getElementById('toggle-observe-btn')!;
 const observeHudCard = document.getElementById('observe-hud-card')!;
 const observeCalloutTitle = document.getElementById('observe-callout-title')!;
@@ -49,6 +50,8 @@ const observeCalloutRationale = document.getElementById('observe-callout-rationa
 const observeCalloutStat = document.getElementById('observe-callout-stat')!;
 const observeFocusSelect = document.getElementById('observe-focus-select') as HTMLSelectElement;
 const observePaceSelect = document.getElementById('observe-pace-select') as HTMLSelectElement;
+const observeCountdownProgress = document.getElementById('observe-countdown-progress') as HTMLProgressElement;
+const observeCountdownLabel = document.getElementById('observe-countdown-label')!;
 
 // Wire Toggletip / Interest-Triggered Tooltips ARIA & Fallbacks (per modern-web-guidance interest-triggered-tooltips)
 const ownedInterestTriggers = new Set<HTMLElement>();
@@ -221,6 +224,15 @@ function renderObserveHUD() {
   }
 
   observeHudCard.hidden = false;
+  if (observeFocusSelect && observeFocusSelect.value !== observe.focus) {
+    observeFocusSelect.value = observe.focus;
+  }
+  if (observeCountdownProgress) {
+    observeCountdownProgress.value = observe.getRemainingPercentage();
+  }
+  if (observeCountdownLabel) {
+    observeCountdownLabel.textContent = `Next focus in ${observe.getRemainingSeconds().toFixed(1)}s`;
+  }
   // Sync speed button highlight
   document.querySelectorAll<HTMLButtonElement>('.speed-btn[data-speed]').forEach((b) => {
     b.classList.toggle('active', parseFloat(b.dataset.speed || '1') === sim.timeScale);
@@ -481,13 +493,26 @@ function renderTrainInspector(forceRebuild = false) {
   lastInspectedTrainId = tr.id;
   renderDynamicHotkeyBar();
 
-  const turnbackOptions = sim.stations
+  const stationTurnbackOptions = sim.stations
     .filter((s) => s.hasTurnback || s.isTerminus)
     .map(
       (s) =>
         `<option value="${s.id}" ${s.id === tr.destCode ? 'selected' : ''}>${s.code} — ${s.name} (${s.maxCars}C max)</option>`
     )
     .join('');
+
+  const specialRoadOptions = sim.nodes
+    .filter((n) => n.roadLabel && (n.type === 'depot' || n.type === 'siding'))
+    .map(
+      (n) =>
+        `<option value="${n.id}" ${n.id === tr.currentNodeId ? 'selected' : ''}>↳ ${n.roadLabel} (${n.name})</option>`
+    )
+    .join('');
+
+  const turnbackOptions = `
+    <optgroup label="Termini &amp; Turnback Stations">${stationTurnbackOptions}</optgroup>
+    <optgroup label="Depot Stabling Roads &amp; Turnback Pockets">${specialRoadOptions}</optgroup>
+  `;
 
   trainInspectorBody.innerHTML = `
     <div class="inspector-grid">
@@ -1035,9 +1060,25 @@ toggleCbtcBtn.addEventListener('click', () => {
   soundEngine.playRelayClick(sim.showCbtcOverlays);
 });
 
+// Wire Shift Preset Selector (Default: MON 05:25 Cold Start)
+shiftPresetSelect?.addEventListener('change', () => {
+  const preset = shiftPresetSelect.value as 'MON_0525' | 'MON_0730' | 'SAT_1300' | 'FRI_2355';
+  sim.loadShiftPreset(preset);
+  soundEngine.playSplitFlap(7);
+  refreshAllUI();
+});
+
 // Toggle Observe Co-Pilot Mode & On-the-Fly Controls
 toggleObserveBtn.addEventListener('click', () => {
   observe.toggle();
+});
+
+document.getElementById('help-me-fix-it-btn')?.addEventListener('click', () => {
+  observe.engageHelpMeFixIt(true);
+});
+
+document.getElementById('observe-fix-all-btn')?.addEventListener('click', () => {
+  observe.engageHelpMeFixIt(true);
 });
 
 document.getElementById('observe-take-wheel-btn')?.addEventListener('click', () => {
@@ -1148,6 +1189,11 @@ function animate(now: number) {
   sim.tick(dt);
   observe.tick(dt);
   schematic.render();
+
+  if (observe.active && observeCountdownProgress && observeCountdownLabel) {
+    observeCountdownProgress.value = observe.getRemainingPercentage();
+    observeCountdownLabel.textContent = `Next focus in ${observe.getRemainingSeconds().toFixed(1)}s`;
+  }
 
   uiRefreshAccumulator += dt;
   if (uiRefreshAccumulator >= 0.45) {

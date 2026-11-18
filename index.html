@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/src/style.css" />
@@ -27,17 +27,25 @@
           </div>
         </div>
 
-        <!-- Mechanical Solari Split-Flap Clock & PPM Index -->
+        <!-- Mechanical Solari Split-Flap Clock, Shift Preset & PPM Index -->
         <div class="split-flap-telemetry">
           <div class="flap-group">
             <div class="label-with-info">
-              <span class="flap-label">CONTROL CLOCK</span>
-              <button type="button" class="info-chip" interestfor="tip-clock" popovertarget="tip-clock" popovertargetaction="show" aria-label="About Control Clock">i</button>
+              <span class="flap-label">CONTROL CLOCK &amp; SHIFT</span>
+              <button type="button" class="info-chip" interestfor="tip-clock" popovertarget="tip-clock" popovertargetaction="show" aria-label="About Control Clock and Shift Presets">i</button>
               <div id="tip-clock" popover="hint" class="terse-tip">
-                <strong>CONTROL CLOCK</strong> · Sim time (starts 07:30 peak). Timetables auto-dispatch trains on interval headways.
+                <strong>CONTROL CLOCK &amp; SHIFT START</strong> · Defaults to <strong>MON 05:25:00</strong> (5 mins before the 05:30 first train wave rolls out of Beckton &amp; Poplar Depots). Switch shift presets anytime.
               </div>
             </div>
-            <div id="sim-clock-flap" class="flap-display">07:30:00</div>
+            <div class="clock-shift-row">
+              <div id="sim-clock-flap" class="flap-display">MON 05:25:00</div>
+              <select id="shift-preset-select" class="shift-preset-select" aria-label="Select Starting Shift Time">
+                <option value="MON_0525" selected>🌅 MON 05:25 (5m to 1st Train)</option>
+                <option value="MON_0730">🏙️ MON 07:30 (Morning Peak)</option>
+                <option value="SAT_1300">✈️ SAT 13:00 (ExCeL/Airport Surge)</option>
+                <option value="FRI_2355">🌙 FRI 23:55 (Depot Run-In)</option>
+              </select>
+            </div>
           </div>
           <div class="flap-group">
             <div class="label-with-info">
@@ -47,17 +55,17 @@
                 <strong>PPM (Public Performance Measure)</strong> · % of DLR trains arriving within 120s of schedule.
               </div>
             </div>
-            <div id="ppm-flap" class="flap-display teal-text">95.2%</div>
+            <div id="ppm-flap" class="flap-display teal-text">100.0%</div>
           </div>
           <div class="flap-group">
             <div class="label-with-info">
               <span class="flap-label">ACTIVE UNITS</span>
               <button type="button" class="info-chip" interestfor="tip-units" popovertarget="tip-units" popovertargetaction="show" aria-label="About Active Units">i</button>
               <div id="tip-units" popover="hint" class="terse-tip">
-                <strong>ACTIVE UNITS</strong> · Live 2-car &amp; 3-car B07/B23 DLR train sets currently running on the network.
+                <strong>ACTIVE UNITS</strong> · Live 2-car &amp; 3-car B07/B23 DLR train sets currently running or stabled on depot roads.
               </div>
             </div>
-            <div id="units-flap" class="flap-display">14</div>
+            <div id="units-flap" class="flap-display">12</div>
           </div>
         </div>
 
@@ -74,10 +82,10 @@
         <div class="sector-jump-cluster" role="group" aria-label="Camera Sector Hotkeys">
           <button type="button" class="sector-btn" data-sector="FULL" title="Full 7-Branch Network Overview (Key 0)">0:ALL</button>
           <button type="button" class="sector-btn active" data-sector="CORE" title="Poplar, Westferry & Canary Wharf Delta (Key 1)">1:DELTA</button>
-          <button type="button" class="sector-btn" data-sector="WEST" title="Bank, Tower Gateway & Shadwell (Key 2)">2:WEST</button>
+          <button type="button" class="sector-btn" data-sector="WEST" title="Bank Deep-Tube Bore, Tower Gateway & Shadwell (Key 2)">2:WEST</button>
           <button type="button" class="sector-btn" data-sector="SOUTH" title="Isle of Dogs, Cutty Sark & Lewisham (Key 3)">3:SOUTH</button>
-          <button type="button" class="sector-btn" data-sector="EAST" title="Canning Town, ExCeL, Beckton & City Airport (Key 4)">4:EAST</button>
-          <button type="button" class="sector-btn" data-sector="NORTH" title="Stratford & Stratford International (Key 5)">5:NORTH</button>
+          <button type="button" class="sector-btn" data-sector="EAST" title="Canning Town, ExCeL, Beckton Depot & City Airport (Key 4)">4:EAST</button>
+          <button type="button" class="sector-btn" data-sector="NORTH" title="Stratford, Stratford Intl & Poplar Depot (Key 5)">5:NORTH</button>
         </div>
 
         <!-- Modal Dialog Triggers & Overlays -->
@@ -93,9 +101,9 @@
           <button type="button" id="toggle-observe-btn" class="util-btn observe-toggle-btn" title="Let an Expert DLR Controller take the wheel and explain their live logic (Key O)">
             👁 OBSERVE CO-PILOT: OFF
           </button>
-          <button type="button" class="info-chip" interestfor="tip-observe" popovertarget="tip-observe" popovertargetaction="show" aria-label="About Observe Co-Pilot Mode">i</button>
+          <button type="button" class="info-chip" interestfor="tip-observe" popovertarget="tip-observe" popovertargetaction="show" aria-label="About Observe Co-Pilot & Help Me Fix It Mode">i</button>
           <div id="tip-observe" popover="hint" class="terse-tip">
-            <strong>OBSERVE CO-PILOT [Key O]</strong> · Watch a veteran DLR controller take the wheel, pan to live bottlenecks, dispatch PSAs, and explain real-world DLR facts &amp; stats at your chosen pace.
+            <strong>OBSERVE &amp; "HELP ME! FIX IT!" CO-PILOT [Key O]</strong> · Watch a veteran DLR controller take the wheel, pan to live bottlenecks, dispatch PSAs, and explain real-world DLR facts &amp; stats, or switch to <strong>🆘 Help Me! Fix It!</strong> to have the AI stabilize all faults for you.
           </div>
 
           <button type="button" id="open-timetable-btn" class="util-btn accent-btn">
@@ -132,6 +140,18 @@
               <span id="observe-callout-tag" class="observe-tag-pill">CONTROLLER LOGIC</span>
             </div>
 
+            <!-- Subtle Countdown Indicator before next focus pop -->
+            <div class="observe-countdown-strip">
+              <progress
+                id="observe-countdown-progress"
+                class="observe-countdown-bar"
+                value="100"
+                max="100"
+                aria-label="Time remaining before Co-Pilot shifts focus"
+              ></progress>
+              <span id="observe-countdown-label" class="observe-countdown-label">Next focus in 10.2s</span>
+            </div>
+
             <p id="observe-callout-rationale" class="observe-rationale">
               I have taken the wheel. I will pan across the network, resolve VOBC &amp; junction faults, and explain the signalling logic and real-world DLR engineering as we go.
             </p>
@@ -145,10 +165,11 @@
             <!-- On-the-Fly Customisation Bar -->
             <div class="observe-controls-bar">
               <div class="observe-select-group">
-                <label for="observe-focus-select">FOCUS</label>
+                <label for="observe-focus-select">MODE</label>
                 <select id="observe-focus-select">
-                  <option value="BALANCED">Balanced (Ops + DLR Lore)</option>
-                  <option value="CRISIS_RECOVERY">Crisis &amp; Fault Recovery</option>
+                  <option value="HELP_ME_FIX_IT">🆘 Help Me! Fix It! (Rescue Only)</option>
+                  <option value="BALANCED" selected>Balanced (Ops + DLR Lore)</option>
+                  <option value="CRISIS_RECOVERY">Crisis &amp; Fault Recovery Demo</option>
                   <option value="DLR_LORE_STATS">DLR Engineering &amp; Stats Tour</option>
                   <option value="TIMETABLE_MASTERY">Peak Timetable &amp; Turnbacks</option>
                 </select>
@@ -156,16 +177,19 @@
               <div class="observe-select-group">
                 <label for="observe-pace-select">PACE</label>
                 <select id="observe-pace-select">
-                  <option value="RELAXED">Relaxed (9.5s)</option>
-                  <option value="NORMAL" selected>Normal (6.8s)</option>
-                  <option value="BRISK">Brisk (4.5s)</option>
+                  <option value="RELAXED">Relaxed (14.3s)</option>
+                  <option value="NORMAL" selected>Normal (10.2s)</option>
+                  <option value="BRISK">Brisk (6.8s)</option>
                 </select>
               </div>
+              <button type="button" id="observe-fix-all-btn" class="observe-action-btn fix-all-btn" title="Have AI Chief Controller resolve all active faults and delays right now">
+                🆘 FIX ALL NOW
+              </button>
               <button type="button" id="observe-next-step-btn" class="observe-action-btn" title="Ask Co-Pilot for next insight or action immediately (Key N)">
-                ⏭ NEXT INSIGHT
+                ⏭ NEXT
               </button>
               <button type="button" id="observe-take-wheel-btn" class="observe-action-btn take-wheel" title="Exit Observe Mode and take back manual control (Key O)">
-                🛞 TAKE THE WHEEL
+                🛞 TAKE WHEEL
               </button>
             </div>
           </section>
@@ -173,10 +197,10 @@
           <!-- Top-Left NX / Signalling Status Banner -->
           <div id="nx-status-banner" class="nx-status-banner">
             <span class="status-dot green"></span>
-            <span id="nx-status-text">ARS AUTO-ROUTING ACTIVE · Hover or click any [i], Station, Train, or Signal for instant terse info</span>
+            <span id="nx-status-text">MON 05:25 COLD START (5m to 05:30 First Train) · Hover or click any [i], Station, Depot Road, or Signal</span>
             <button type="button" class="info-chip" style="pointer-events:auto;" interestfor="tip-nx" popovertarget="tip-nx" popovertargetaction="show" aria-label="About ARS and NX Signalling">i</button>
             <div id="tip-nx" popover="hint" class="terse-tip">
-              <strong>ARS vs NX ROUTING</strong> · ARS sets routes automatically. Click any Entry signal then Exit signal to force a manual white NX route. Shift+Click a signal to hold it RED.
+              <strong>ARS vs NX &amp; SOP RULES</strong> · ARS sets routes automatically. Click any Entry signal then Exit signal (including Depot Roads BDP_R1–R4 &amp; PDP_S1–S3) to lock a white NX route. SOP-UG1 allows 1 train per deep bore; SOP-TWG locks 3-car trains out of Tower Gateway.
             </div>
           </div>
 
@@ -198,7 +222,7 @@
               <div class="legend-item"><span class="swatch two-car"></span> [2C] 2-Car Max</div>
               <button type="button" class="info-chip" style="pointer-events:auto;" interestfor="tip-legend" popovertarget="tip-legend" popovertargetaction="show" aria-label="About Schematic Legend">i</button>
               <div id="tip-legend" popover="hint" class="terse-tip">
-                <strong>TRACK COLOURS</strong> · Red = Train occupying block. Green glow = CBTC braking zone. White = Locked NX route. [2C] = Short platform (Tower Gateway, Cutty Sark, Elverson Rd).
+                <strong>TRACK COLOURS &amp; BERTHS</strong> · Red = Occupied block. Green glow = CBTC braking zone. White = Locked NX route. Purple/Cyan boxes = Multi-road Depot Stabling (BDP Rd 1–4, PDP Rd 1–3) &amp; Turnback Pockets (BNK_HSH, CAW P3/P4).
               </div>
             </div>
           </div>
@@ -211,12 +235,15 @@
                 <h2>PRIORITY ACTION INSET</h2>
                 <button type="button" class="info-chip" interestfor="tip-inset" popovertarget="tip-inset" popovertargetaction="show" aria-label="About Priority Action Inset">i</button>
                 <div id="tip-inset" popover="hint" class="terse-tip">
-                  <strong>ACTION INSET</strong> · Lists live blocking faults &amp; crowd surges. Click LOCATE to jump there, or click a blue action button to dispatch a PSA / short-turn trains.
+                  <strong>ACTION INSET &amp; AI RESCUE</strong> · Lists live blocking faults &amp; pre-service checks. Click <strong>🆘 HELP ME! FIX IT!</strong> to let the AI Chief Controller take charge and fix all active bottlenecks!
                 </div>
               </div>
               <div class="inset-actions">
+                <button type="button" id="help-me-fix-it-btn" class="mini-action-btn rescue-btn" title="Have the AI Co-Pilot take charge and fix all active faults & delays!">
+                  🆘 HELP! FIX IT
+                </button>
                 <button type="button" id="random-disruption-btn" class="mini-action-btn" title="Trigger a realistic DLR operational disruption">
-                  ⚡ +DISRUPTION
+                  ⚡ +DISRUPT
                 </button>
               </div>
             </div>

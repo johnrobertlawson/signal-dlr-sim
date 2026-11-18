@@ -28,6 +28,7 @@ export interface TrackNode {
   pointsFailed?: boolean;
   trackBlocked?: boolean;
   hasSignal: boolean;
+  roadLabel?: string; // Short schematic label for depot roads, headshunts, or delta chords (e.g. "BDP RD 1", "BNK HSH", "CAW P3/4")
 }
 
 export interface TrackEdge {
@@ -40,6 +41,7 @@ export interface TrackEdge {
   isTunnel?: boolean;
   isSingleLineWorking?: boolean;
   isCrossover?: boolean;
+  edgeLabel?: string; // Optional schematic label along chord/flyover/bore
   waypoints?: { x: number; y: number }[];
 }
 
